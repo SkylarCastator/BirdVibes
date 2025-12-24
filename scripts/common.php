@@ -1,6 +1,8 @@
 <?php
 
-define('__ROOT__', dirname(dirname(__FILE__)));
+if (!defined('__ROOT__')) {
+    define('__ROOT__', dirname(dirname(__FILE__)));
+}
 
 if (session_status() !== PHP_SESSION_ACTIVE)
   session_start();
@@ -20,13 +22,44 @@ function set_timezone() {
   date_default_timezone_set($_SESSION['my_timezone']);
 }
 
+function get_config_path() {
+  $prod_config = '/etc/birdnet/birdnet.conf';
+  $dev_config = __ROOT__ . '/dev/birdnet.conf';
+
+  if (file_exists($prod_config) && is_readable($prod_config)) {
+    return $prod_config;
+  }
+  if (file_exists($dev_config) && is_readable($dev_config)) {
+    return $dev_config;
+  }
+  return null;
+}
+
 function get_config($force_reload = false) {
-  $mtime = stat('/etc/birdnet/birdnet.conf')["mtime"];
+  $config_path = get_config_path();
+  if ($config_path === null) {
+    // Return default config if no config file found
+    return [
+      'BIRDNET_USER' => get_current_user(),
+      'SITE_NAME' => 'BirdNET-Pi',
+      'LATITUDE' => 0,
+      'LONGITUDE' => 0,
+      'MODEL' => 'BirdNET_GLOBAL_6K_V2.4',
+      'DATABASE_LANG' => 'en',
+      'COLOR_SCHEME' => 'dark',
+      'INFO_SITE' => 'ALLABOUTBIRDS',
+      'IMAGE_PROVIDER' => 'WIKIPEDIA',
+      'CADDY_PWD' => 'birdnet',
+    ];
+  }
+
+  $stat = @stat($config_path);
+  $mtime = $stat ? $stat["mtime"] : 0;
   if (isset($_SESSION['my_config_version']) && $_SESSION['my_config_version'] !== $mtime) {
     $force_reload = true;
   }
   if (!isset($_SESSION['my_config']) || $force_reload) {
-    $source = preg_replace("~^#+.*$~m", "", file_get_contents('/etc/birdnet/birdnet.conf'));
+    $source = preg_replace("~^#+.*$~m", "", file_get_contents($config_path));
     $my_config = parse_ini_string($source);
     if ($my_config) {
       $_SESSION['my_config'] = $my_config;
@@ -38,6 +71,39 @@ function get_config($force_reload = false) {
   return $_SESSION['my_config'];
 }
 
+function save_config($settings) {
+  $config_path = get_config_path();
+  if ($config_path === null) {
+    $config_path = __ROOT__ . '/dev/birdnet.conf';
+  }
+
+  // Read existing config
+  $existing = [];
+  if (file_exists($config_path)) {
+    $source = preg_replace("~^#+.*$~m", "", file_get_contents($config_path));
+    $existing = parse_ini_string($source) ?: [];
+  }
+
+  // Merge with new settings
+  $merged = array_merge($existing, $settings);
+
+  // Write back
+  $content = "# BirdNET-Pi Configuration\n";
+  foreach ($merged as $key => $value) {
+    $content .= "$key=$value\n";
+  }
+
+  if (file_put_contents($config_path, $content) === false) {
+    return false;
+  }
+
+  // Clear session cache
+  unset($_SESSION['my_config']);
+  unset($_SESSION['my_config_version']);
+
+  return true;
+}
+
 function get_user() {
   $config = get_config();
   $user = $config['BIRDNET_USER'];
@@ -46,6 +112,11 @@ function get_user() {
 
 function get_home() {
   $home = '/home/' . get_user();
+  // In production, BirdNET-Pi is at $home/BirdNET-Pi
+  // In development, return parent of __ROOT__ so $home/BirdNET-Pi works
+  if (!is_dir($home . '/BirdNET-Pi') && is_dir(__ROOT__ . '/model')) {
+    return dirname(__ROOT__);
+  }
   return $home;
 }
 
@@ -479,6 +550,19 @@ class Wikipedia extends ImageProvider {
     }
     $photo_url = "https://en.wikipedia.org/wiki/File:$image_name";
     return $photo_url;
+  }
+
+  public function get_description($sci_name) {
+    $page_title = str_replace(' ', '_', $sci_name);
+    $data = $this->get_json("https://en.wikipedia.org/api/rest_v1/page/summary/$page_title");
+    if ($data == false || !isset($data['extract']))
+      return null;
+
+    return [
+      'extract' => $data['extract'],
+      'wikipedia_url' => $data['content_urls']['desktop']['page'] ?? null,
+      'description' => $data['description'] ?? null
+    ];
   }
 }
 
