@@ -55,8 +55,9 @@ export function HotspotsList({
             {forSpecies ? 'Where to Find' : 'Nearby Hotspots'}
           </CardTitle>
         </CardHeader>
-        <CardContent className="py-8 flex items-center justify-center">
+        <CardContent className="py-8 flex flex-col items-center justify-center gap-2">
           <span className="text-muted-foreground text-sm">Unable to load hotspots</span>
+          <span className="text-xs text-muted-foreground/70">{error.message}</span>
         </CardContent>
       </Card>
     )

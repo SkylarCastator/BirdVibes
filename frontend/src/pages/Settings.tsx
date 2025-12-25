@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useConfig, useBirdWeatherStats } from '@/hooks/useApi'
+import { useConfig, useBirdWeatherStats, useEBirdRegion } from '@/hooks/useApi'
 import { api, type ConfigUpdate } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio } from 'lucide-react'
@@ -15,6 +15,7 @@ type ImageProvider = 'WIKIPEDIA' | 'FLICKR'
 export function Settings() {
   const { data: config, isLoading } = useConfig()
   const { data: birdweatherStats, isLoading: bwLoading, error: bwError } = useBirdWeatherStats()
+  const { data: ebirdRegion, isLoading: regionLoading, error: regionError } = useEBirdRegion()
   const queryClient = useQueryClient()
 
   const [siteName, setSiteName] = useState('')
@@ -419,6 +420,28 @@ export function Settings() {
               </>
             )}
           </div>
+
+          {/* Region Info */}
+          {config?.ebird_enabled && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Region</span>
+              </div>
+              {regionLoading ? (
+                <p className="text-sm text-muted-foreground mt-1">Detecting region...</p>
+              ) : regionError ? (
+                <p className="text-sm text-destructive mt-1">Could not detect region: {regionError.message}</p>
+              ) : ebirdRegion ? (
+                <div className="mt-1">
+                  <p className="text-sm">{ebirdRegion.region_name}</p>
+                  <p className="text-xs text-muted-foreground">Code: {ebirdRegion.region_code}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">Set your location to enable regional data</p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

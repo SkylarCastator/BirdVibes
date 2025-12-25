@@ -75,8 +75,9 @@ export function ObservationMap({
             Recent Sightings
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-[250px] flex items-center justify-center">
+        <CardContent className="h-[250px] flex flex-col items-center justify-center gap-2">
           <span className="text-muted-foreground">Unable to load sightings</span>
+          <span className="text-xs text-muted-foreground/70">{error.message}</span>
         </CardContent>
       </Card>
     )

@@ -50,8 +50,9 @@ export function FrequencyHeatmap({ data, isLoading, error }: FrequencyHeatmapPro
         <CardHeader>
           <CardTitle>Seasonal Frequency</CardTitle>
         </CardHeader>
-        <CardContent className="h-[200px] flex items-center justify-center">
+        <CardContent className="h-[200px] flex flex-col items-center justify-center gap-2">
           <span className="text-muted-foreground">Unable to load frequency data</span>
+          <span className="text-xs text-muted-foreground/70">{error.message}</span>
         </CardContent>
       </Card>
     )
