@@ -4,6 +4,7 @@ if (!defined('__ROOT__')) {
     define('__ROOT__', dirname(dirname(__FILE__)));
 }
 require_once(__ROOT__ . '/scripts/common.php');
+require_once(__ROOT__ . '/scripts/ebird_api.php');
 
 set_timezone();
 $config = get_config();
@@ -99,6 +100,42 @@ try {
   // GET /api/v1/birdweather/recordings/{sci_name}
   elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/birdweather/recordings/([^/]+)$#', $requestUri, $matches)) {
     handleBirdWeatherRecordings(urldecode($matches[1]));
+  }
+  // GET /api/v1/ebird/config
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/ebird/config') {
+    handleEBirdConfig();
+  }
+  // GET /api/v1/ebird/observations/{sci_name}
+  elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/ebird/observations/([^/]+)$#', $requestUri, $matches)) {
+    handleEBirdObservations(urldecode($matches[1]));
+  }
+  // GET /api/v1/ebird/hotspots
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/ebird/hotspots') {
+    handleEBirdHotspots();
+  }
+  // GET /api/v1/ebird/hotspots/{sci_name}
+  elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/ebird/hotspots/([^/]+)$#', $requestUri, $matches)) {
+    handleEBirdHotspotsForSpecies(urldecode($matches[1]));
+  }
+  // GET /api/v1/ebird/notable
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/ebird/notable') {
+    handleEBirdNotable();
+  }
+  // GET /api/v1/ebird/frequency/{sci_name}
+  elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/ebird/frequency/([^/]+)$#', $requestUri, $matches)) {
+    handleEBirdFrequency(urldecode($matches[1]));
+  }
+  // GET /api/v1/ebird/region
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/ebird/region') {
+    handleEBirdRegion();
+  }
+  // GET /api/v1/ebird/regional-species
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/ebird/regional-species') {
+    handleEBirdRegionalSpecies();
+  }
+  // GET /api/v1/collection
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/collection') {
+    handleCollection();
   }
   else {
     sendError(404, 'Route not found');
@@ -358,11 +395,14 @@ function handleRecordingsByDate($date) {
 function handleGetConfig() {
   $config = get_config();
 
-  // Mask BirdWeather token for security (show only if set)
+  // Mask tokens for security (show only if set)
   $bwToken = $config['BIRDWEATHER_TOKEN'] ?? '';
   $bwTokenMasked = $bwToken ? '••••' . substr($bwToken, -4) : '';
+  $ebirdKey = $config['EBIRD_API_KEY'] ?? '';
+  $ebirdKeyMasked = $ebirdKey ? '••••' . substr($ebirdKey, -4) : '';
 
   // Only expose safe/public config values
+  $livestreamEnabled = $config['LIVESTREAM_ENABLED'] ?? 'true';
   sendSuccess([
     'site_name' => get_sitename(),
     'latitude' => (float)($config['LATITUDE'] ?? 0),
@@ -373,7 +413,10 @@ function handleGetConfig() {
     'info_site' => $config['INFO_SITE'] ?? 'ALLABOUTBIRDS',
     'image_provider' => $config['IMAGE_PROVIDER'] ?? 'WIKIPEDIA',
     'birdweather_token' => $bwTokenMasked,
-    'birdweather_enabled' => !empty($bwToken)
+    'birdweather_enabled' => !empty($bwToken),
+    'ebird_api_key' => $ebirdKeyMasked,
+    'ebird_enabled' => !empty($ebirdKey),
+    'livestream_enabled' => filter_var($livestreamEnabled, FILTER_VALIDATE_BOOLEAN)
   ]);
 }
 
@@ -428,7 +471,7 @@ function handleSaveConfig() {
   }
 
   // Allowed settings to update
-  $allowed = ['SITE_NAME', 'LATITUDE', 'LONGITUDE', 'COLOR_SCHEME', 'INFO_SITE', 'IMAGE_PROVIDER', 'BIRDWEATHER_TOKEN'];
+  $allowed = ['SITE_NAME', 'LATITUDE', 'LONGITUDE', 'COLOR_SCHEME', 'INFO_SITE', 'IMAGE_PROVIDER', 'BIRDWEATHER_TOKEN', 'EBIRD_API_KEY', 'LIVESTREAM_ENABLED'];
   $settings = [];
 
   foreach ($allowed as $key) {
@@ -719,4 +762,350 @@ function handleBirdWeatherRecordings($sciName) {
     'species' => $sciName,
     'source' => 'birdweather'
   ]);
+}
+
+// GET /api/v1/ebird/config
+function handleEBirdConfig() {
+  $config = get_config();
+  $apiKey = $config['EBIRD_API_KEY'] ?? '';
+
+  sendSuccess([
+    'configured' => !empty($apiKey),
+    'api_key_masked' => $apiKey ? '••••' . substr($apiKey, -4) : ''
+  ]);
+}
+
+// GET /api/v1/ebird/observations/{sci_name}
+function handleEBirdObservations($sciName) {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $days = isset($_GET['days']) ? min((int)$_GET['days'], 30) : 30;
+  $dist = isset($_GET['dist']) ? min((int)$_GET['dist'], 100) : 50;
+
+  $observations = $ebird->getRecentObservations($sciName, $days, $dist);
+
+  if (isset($observations['error'])) {
+    sendError(400, $observations['error']);
+  }
+
+  // Format observations for frontend
+  $formatted = [];
+  foreach ($observations as $obs) {
+    $formatted[] = [
+      'speciesCode' => $obs['speciesCode'] ?? null,
+      'comName' => $obs['comName'] ?? null,
+      'sciName' => $obs['sciName'] ?? null,
+      'locId' => $obs['locId'] ?? null,
+      'locName' => $obs['locName'] ?? null,
+      'lat' => (float)($obs['lat'] ?? 0),
+      'lng' => (float)($obs['lng'] ?? 0),
+      'obsDt' => $obs['obsDt'] ?? null,
+      'howMany' => (int)($obs['howMany'] ?? 1),
+      'obsValid' => $obs['obsValid'] ?? true,
+      'locationPrivate' => $obs['locationPrivate'] ?? false
+    ];
+  }
+
+  sendSuccess($formatted, [
+    'species' => $sciName,
+    'days' => $days,
+    'distance_km' => $dist
+  ]);
+}
+
+// GET /api/v1/ebird/hotspots
+function handleEBirdHotspots() {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $dist = isset($_GET['dist']) ? min((int)$_GET['dist'], 100) : 50;
+
+  $hotspots = $ebird->getNearbyHotspots($dist);
+
+  if (isset($hotspots['error'])) {
+    sendError(400, $hotspots['error']);
+  }
+
+  // Format hotspots for frontend
+  $formatted = [];
+  foreach ($hotspots as $hs) {
+    $formatted[] = [
+      'locId' => $hs['locId'] ?? null,
+      'locName' => $hs['locName'] ?? null,
+      'lat' => (float)($hs['lat'] ?? 0),
+      'lng' => (float)($hs['lng'] ?? 0),
+      'countryCode' => $hs['countryCode'] ?? null,
+      'subnational1Code' => $hs['subnational1Code'] ?? null,
+      'numSpeciesAllTime' => (int)($hs['numSpeciesAllTime'] ?? 0),
+      'latestObsDt' => $hs['latestObsDt'] ?? null
+    ];
+  }
+
+  sendSuccess($formatted, ['distance_km' => $dist]);
+}
+
+// GET /api/v1/ebird/hotspots/{sci_name}
+function handleEBirdHotspotsForSpecies($sciName) {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $hotspots = $ebird->getHotspotsForSpecies($sciName);
+
+  if (isset($hotspots['error'])) {
+    sendError(400, $hotspots['error']);
+  }
+
+  sendSuccess($hotspots, ['species' => $sciName]);
+}
+
+// GET /api/v1/ebird/notable
+function handleEBirdNotable() {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $days = isset($_GET['days']) ? min((int)$_GET['days'], 30) : 14;
+  $dist = isset($_GET['dist']) ? min((int)$_GET['dist'], 100) : 50;
+
+  $notable = $ebird->getNotableObservations($days, $dist);
+
+  if (isset($notable['error'])) {
+    sendError(400, $notable['error']);
+  }
+
+  // Format notable observations
+  $formatted = [];
+  foreach ($notable as $obs) {
+    $formatted[] = [
+      'speciesCode' => $obs['speciesCode'] ?? null,
+      'comName' => $obs['comName'] ?? null,
+      'sciName' => $obs['sciName'] ?? null,
+      'locId' => $obs['locId'] ?? null,
+      'locName' => $obs['locName'] ?? null,
+      'lat' => (float)($obs['lat'] ?? 0),
+      'lng' => (float)($obs['lng'] ?? 0),
+      'obsDt' => $obs['obsDt'] ?? null,
+      'howMany' => (int)($obs['howMany'] ?? 1),
+      'obsReviewed' => $obs['obsReviewed'] ?? false,
+      'obsValid' => $obs['obsValid'] ?? true,
+      'userDisplayName' => $obs['userDisplayName'] ?? null,
+      'subId' => $obs['subId'] ?? null
+    ];
+  }
+
+  sendSuccess($formatted, [
+    'days' => $days,
+    'distance_km' => $dist
+  ]);
+}
+
+// GET /api/v1/ebird/frequency/{sci_name}
+function handleEBirdFrequency($sciName) {
+  $ebird = new EBirdAPI();
+
+  $frequency = $ebird->getFrequencyData($sciName);
+
+  if (isset($frequency['error'])) {
+    sendError(400, $frequency['error']);
+  }
+
+  sendSuccess($frequency, ['species' => $sciName]);
+}
+
+// GET /api/v1/ebird/region
+function handleEBirdRegion() {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $regionInfo = $ebird->getRegionInfo();
+
+  if (isset($regionInfo['error'])) {
+    sendError(400, $regionInfo['error']);
+  }
+
+  sendSuccess($regionInfo);
+}
+
+// GET /api/v1/ebird/regional-species
+function handleEBirdRegionalSpecies() {
+  $ebird = new EBirdAPI();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  $species = $ebird->getRegionalSpeciesList();
+
+  if (isset($species['error'])) {
+    sendError(400, $species['error']);
+  }
+
+  sendSuccess($species, ['count' => count($species)]);
+}
+
+// GET /api/v1/collection
+function handleCollection() {
+  $ebird = new EBirdAPI();
+  $db = get_db();
+
+  if (!$ebird->isConfigured()) {
+    sendError(400, 'eBird API key not configured');
+  }
+
+  // Check for force refresh
+  $forceRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
+
+  // Try to get cached collection first (cache for 1 hour)
+  if (!$forceRefresh) {
+    $cached = $ebird->getCachedCollection();
+    if ($cached !== null) {
+      // Update with fresh local detection counts
+      $localSpecies = getLocalDetectionCounts($db);
+      $discoveredCount = 0;
+      foreach ($cached as &$sp) {
+        $discovered = isset($localSpecies[$sp['sci_name']]);
+        $sp['discovered'] = $discovered;
+        if ($discovered) {
+          $sp['count'] = (int)$localSpecies[$sp['sci_name']]['count'];
+          $sp['max_confidence'] = (float)$localSpecies[$sp['sci_name']]['max_confidence'];
+          $sp['first_seen'] = $localSpecies[$sp['sci_name']]['first_seen'];
+          $sp['last_seen'] = $localSpecies[$sp['sci_name']]['last_seen'];
+          if (empty($sp['com_name'])) {
+            $sp['com_name'] = $localSpecies[$sp['sci_name']]['Com_Name'];
+          }
+          $discoveredCount++;
+        } else {
+          $sp['count'] = 0;
+          $sp['max_confidence'] = null;
+          $sp['first_seen'] = null;
+          $sp['last_seen'] = null;
+        }
+      }
+      sendSuccess($cached, [
+        'total' => count($cached),
+        'discovered' => $discoveredCount,
+        'cached' => true
+      ]);
+      return;
+    }
+  }
+
+  // Get regional species list
+  $regionalSpecies = $ebird->getRegionalSpeciesList();
+  if (isset($regionalSpecies['error'])) {
+    sendError(400, $regionalSpecies['error']);
+  }
+
+  // Get all local detections grouped by species
+  $localSpecies = getLocalDetectionCounts($db);
+
+  // Get common names from labels file (cached in static var)
+  static $labels = null;
+  if ($labels === null) {
+    $labelsPath = __ROOT__ . '/model/l18n/labels_en.json';
+    if (file_exists($labelsPath)) {
+      $labels = json_decode(file_get_contents($labelsPath), true) ?: [];
+    } else {
+      $labels = [];
+    }
+  }
+
+  // Build collection - skip frequency fetching for speed
+  $collection = [];
+  $discoveredCount = 0;
+
+  foreach ($regionalSpecies as $sp) {
+    $sciName = $sp['sci_name'];
+    $speciesCode = $sp['species_code'];
+    $discovered = isset($localSpecies[$sciName]);
+
+    if ($discovered) {
+      $discoveredCount++;
+    }
+
+    // Get common name from local detections or labels file
+    $comName = null;
+    if ($discovered && !empty($localSpecies[$sciName]['Com_Name'])) {
+      $comName = $localSpecies[$sciName]['Com_Name'];
+    } elseif (isset($labels[$sciName])) {
+      $comName = $labels[$sciName];
+    }
+
+    // Use cached rarity if available, otherwise default to 'unknown'
+    $cachedRarity = $ebird->getCachedRarity($speciesCode);
+
+    $collection[] = [
+      'sci_name' => $sciName,
+      'com_name' => $comName,
+      'species_code' => $speciesCode,
+      'discovered' => $discovered,
+      'count' => $discovered ? (int)$localSpecies[$sciName]['count'] : 0,
+      'max_confidence' => $discovered ? (float)$localSpecies[$sciName]['max_confidence'] : null,
+      'first_seen' => $discovered ? $localSpecies[$sciName]['first_seen'] : null,
+      'last_seen' => $discovered ? $localSpecies[$sciName]['last_seen'] : null,
+      'frequency' => $cachedRarity['frequency'] ?? 0,
+      'rarity' => $cachedRarity['rarity'] ?? 'unknown'
+    ];
+  }
+
+  // Sort: discovered first, then alphabetically
+  usort($collection, function($a, $b) {
+    // Discovered species first
+    if ($a['discovered'] !== $b['discovered']) {
+      return $a['discovered'] ? -1 : 1;
+    }
+    // Then alphabetically
+    return strcmp($a['com_name'] ?? $a['sci_name'], $b['com_name'] ?? $b['sci_name']);
+  });
+
+  // Cache the collection (1 hour)
+  $ebird->cacheCollection($collection);
+
+  sendSuccess($collection, [
+    'total' => count($collection),
+    'discovered' => $discoveredCount,
+    'cached' => false
+  ]);
+}
+
+// Helper: Get local detection counts
+function getLocalDetectionCounts($db) {
+  $stmt = $db->prepare("
+    SELECT Sci_Name, Com_Name,
+           COUNT(*) as count,
+           MAX(Confidence) as max_confidence,
+           MIN(Date) as first_seen,
+           MAX(Date) as last_seen
+    FROM detections
+    GROUP BY Sci_Name
+  ");
+  $result = $stmt->execute();
+  $species = [];
+  while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    $species[$row['Sci_Name']] = $row;
+  }
+  return $species;
+}
+
+// Calculate rarity tier from eBird frequency
+function calculateRarity($frequency) {
+  if ($frequency > 0.20) return 'common';      // > 20%
+  if ($frequency > 0.05) return 'uncommon';    // 5-20%
+  if ($frequency > 0.01) return 'rare';        // 1-5%
+  return 'ultra_rare';                          // < 1%
 }

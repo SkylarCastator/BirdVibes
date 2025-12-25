@@ -56,6 +56,9 @@ export interface Config {
   image_provider: string
   birdweather_token: string
   birdweather_enabled: boolean
+  ebird_api_key: string
+  ebird_enabled: boolean
+  livestream_enabled: boolean
 }
 
 export interface BirdWeatherStats {
@@ -166,4 +169,78 @@ export interface OrnithophileBird {
   description: string | null
   sources: string | null
   other_images: Array<{ name: string; source: string }>
+}
+
+// eBird types
+export interface EBirdObservation {
+  speciesCode: string | null
+  comName: string | null
+  sciName: string | null
+  locId: string | null
+  locName: string | null
+  lat: number
+  lng: number
+  obsDt: string | null
+  howMany: number
+  obsValid: boolean
+  locationPrivate: boolean
+}
+
+export interface EBirdHotspot {
+  locId: string | null
+  locName: string | null
+  lat: number
+  lng: number
+  countryCode: string | null
+  subnational1Code: string | null
+  numSpeciesAllTime: number
+  latestObsDt: string | null
+}
+
+export interface EBirdNotableObservation extends EBirdObservation {
+  obsReviewed: boolean
+  userDisplayName: string | null
+  subId: string | null
+}
+
+export interface EBirdSpeciesHotspot {
+  locId: string | null
+  locName: string | null
+  lat: number | null
+  lng: number | null
+  lastSeen: string | null
+  count: number | null
+}
+
+export interface EBirdFrequencyPoint {
+  week: number
+  month: string
+  localFreq: number
+  ebirdFreq: number
+}
+
+export interface EBirdConfig {
+  configured: boolean
+  api_key_masked: string
+}
+
+export interface EBirdRegion {
+  region_code: string
+  region_name: string
+}
+
+// Collection/Pokedex types
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'ultra_rare' | 'unknown'
+
+export interface CollectionSpecies {
+  sci_name: string
+  com_name: string | null
+  species_code: string
+  discovered: boolean
+  count: number
+  max_confidence: number | null
+  first_seen: string | null
+  last_seen: string | null
+  frequency: number
+  rarity: Rarity
 }

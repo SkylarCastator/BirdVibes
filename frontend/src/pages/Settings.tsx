@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { useConfig, useBirdWeatherStats } from '@/hooks/useApi'
 import { api, type ConfigUpdate } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle } from 'lucide-react'
+import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 type ColorScheme = 'light' | 'dark'
 type InfoSite = 'ALLABOUTBIRDS' | 'EBIRD'
@@ -24,6 +25,7 @@ export function Settings() {
   const [imageProvider, setImageProvider] = useState<ImageProvider>('WIKIPEDIA')
   const [birdweatherToken, setBirdweatherToken] = useState('')
   const [ebirdApiKey, setEbirdApiKey] = useState('')
+  const [livestreamEnabled, setLivestreamEnabled] = useState(true)
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -37,6 +39,7 @@ export function Settings() {
       setColorScheme((config.color_scheme as ColorScheme) || 'dark')
       setInfoSite((config.info_site as InfoSite) || 'ALLABOUTBIRDS')
       setImageProvider((config.image_provider as ImageProvider) || 'WIKIPEDIA')
+      setLivestreamEnabled(config.livestream_enabled ?? true)
     }
   }, [config])
 
@@ -53,6 +56,7 @@ export function Settings() {
         COLOR_SCHEME: colorScheme,
         INFO_SITE: infoSite,
         IMAGE_PROVIDER: imageProvider,
+        LIVESTREAM_ENABLED: livestreamEnabled,
       }
 
       // Only update tokens if user entered new ones
@@ -125,6 +129,33 @@ export function Settings() {
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
               placeholder="BirdNET-Pi"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Live Stream */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Radio className="h-5 w-5" />
+            Live Audio Stream
+          </CardTitle>
+          <CardDescription>
+            Listen to live audio from your BirdNET-Pi microphone
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Enable Live Stream</p>
+              <p className="text-xs text-muted-foreground">
+                Show the Live Audio page in navigation
+              </p>
+            </div>
+            <Switch
+              checked={livestreamEnabled}
+              onCheckedChange={setLivestreamEnabled}
             />
           </div>
         </CardContent>

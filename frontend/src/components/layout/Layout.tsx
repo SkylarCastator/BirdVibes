@@ -2,10 +2,10 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X, Grid3X3, Radio } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { useSpeciesList } from '@/hooks/useApi'
+import { useSpeciesList, useConfig } from '@/hooks/useApi'
 import { useNewBirds } from '@/hooks/useNewBirds'
 
-const navItems = [
+const allNavItems = [
   { path: '/', label: 'Overview', icon: Home },
   { path: '/detections', label: 'Detections', icon: Bird },
   { path: '/species', label: 'Species', icon: BarChart3 },
@@ -19,6 +19,18 @@ const navItems = [
 export function Layout() {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { data: config } = useConfig()
+
+  // Filter nav items based on config
+  const navItems = useMemo(() => {
+    return allNavItems.filter(item => {
+      // Hide Live if livestream is disabled
+      if (item.path === '/live' && config?.livestream_enabled === false) {
+        return false
+      }
+      return true
+    })
+  }, [config?.livestream_enabled])
 
   // Track new birds for notification badge
   const { data: speciesList } = useSpeciesList()

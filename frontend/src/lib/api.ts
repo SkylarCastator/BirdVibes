@@ -13,6 +13,14 @@ import type {
   AnalyticsSummary,
   BirdWeatherStats,
   BirdWeatherRecordingsResponse,
+  EBirdObservation,
+  EBirdHotspot,
+  EBirdNotableObservation,
+  EBirdSpeciesHotspot,
+  EBirdFrequencyPoint,
+  EBirdConfig,
+  EBirdRegion,
+  CollectionSpecies,
 } from './types'
 
 const BASE_URL = '/api/v1'
@@ -37,6 +45,8 @@ export interface ConfigUpdate {
   INFO_SITE?: string
   IMAGE_PROVIDER?: string
   BIRDWEATHER_TOKEN?: string
+  EBIRD_API_KEY?: string
+  LIVESTREAM_ENABLED?: boolean
 }
 
 export const api = {
@@ -130,4 +140,40 @@ export const api = {
 
   getBirdWeatherRecordings: (sciName: string, limit = 5) =>
     fetchApi<BirdWeatherRecordingsResponse>(`/birdweather/recordings/${encodeURIComponent(sciName)}?limit=${limit}`),
+
+  // eBird
+  getEBirdConfig: () =>
+    fetchApi<EBirdConfig>('/ebird/config'),
+
+  getEBirdObservations: (sciName: string, params?: { days?: number; dist?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.days) query.set('days', String(params.days))
+    if (params?.dist) query.set('dist', String(params.dist))
+    const qs = query.toString()
+    return fetchApi<EBirdObservation[]>(`/ebird/observations/${encodeURIComponent(sciName)}${qs ? `?${qs}` : ''}`)
+  },
+
+  getEBirdHotspots: (dist = 50) =>
+    fetchApi<EBirdHotspot[]>(`/ebird/hotspots?dist=${dist}`),
+
+  getEBirdHotspotsForSpecies: (sciName: string) =>
+    fetchApi<EBirdSpeciesHotspot[]>(`/ebird/hotspots/${encodeURIComponent(sciName)}`),
+
+  getEBirdNotable: (params?: { days?: number; dist?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.days) query.set('days', String(params.days))
+    if (params?.dist) query.set('dist', String(params.dist))
+    const qs = query.toString()
+    return fetchApi<EBirdNotableObservation[]>(`/ebird/notable${qs ? `?${qs}` : ''}`)
+  },
+
+  getEBirdFrequency: (sciName: string) =>
+    fetchApi<EBirdFrequencyPoint[]>(`/ebird/frequency/${encodeURIComponent(sciName)}`),
+
+  getEBirdRegion: () =>
+    fetchApi<EBirdRegion>('/ebird/region'),
+
+  // Collection
+  getCollection: () =>
+    fetchApi<CollectionSpecies[]>('/collection'),
 }
