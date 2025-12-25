@@ -1,11 +1,11 @@
+<p align="center">
+  <img src="frontend/public/kiwi.png" width="300" />
+</p>
 <h1 align="center">
   BirdVibes
 </h1>
 <p align="center">
 A modern web interface for real-time acoustic bird classification on Raspberry Pi
-</p>
-<p align="center">
-  <img src="https://user-images.githubusercontent.com/60325264/140656397-bf76bad4-f110-467c-897d-992ff0f96476.png" />
 </p>
 
 ## About
