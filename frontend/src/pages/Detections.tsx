@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { useTodayDetections } from '@/hooks/useApi'
 import { DetectionCard } from '@/components/detection/DetectionCard'
@@ -6,12 +6,24 @@ import { Search } from 'lucide-react'
 
 export function Detections() {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const { data: detections, isLoading } = useTodayDetections({ limit: 100 })
 
-  const filtered = detections?.filter((d) =>
-    d.Com_Name.toLowerCase().includes(search.toLowerCase()) ||
-    d.Sci_Name.toLowerCase().includes(search.toLowerCase())
-  )
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const filtered = useMemo(() => {
+    if (!detections) return []
+    if (!debouncedSearch) return detections
+    const term = debouncedSearch.toLowerCase()
+    return detections.filter(d =>
+      d.Com_Name.toLowerCase().includes(term) ||
+      d.Sci_Name.toLowerCase().includes(term)
+    )
+  }, [detections, debouncedSearch])
 
   return (
     <div className="space-y-4 pb-20 md:pb-0">
@@ -40,7 +52,7 @@ export function Detections() {
             <div key={i} className="h-32 bg-muted rounded-xl animate-pulse" />
           ))}
         </div>
-      ) : !filtered?.length ? (
+      ) : !filtered.length ? (
         <p className="py-8 text-center text-muted-foreground">
           {search ? 'No matching detections' : 'No detections today'}
         </p>
