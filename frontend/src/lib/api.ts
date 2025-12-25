@@ -28,11 +28,14 @@ const BASE_URL = '/api/v1'
 async function fetchApi<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${endpoint}`)
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
+    const text = await response.text()
+    console.error(`API error ${response.status} for ${endpoint}:`, text)
+    throw new Error(`API error: ${response.status} - ${text.slice(0, 100)}`)
   }
   const json: ApiResponse<T> = await response.json()
   if (json.status === 'error') {
-    throw new Error('API returned error')
+    console.error(`API returned error for ${endpoint}:`, json)
+    throw new Error(json.message || 'API returned error')
   }
   return json.data
 }
