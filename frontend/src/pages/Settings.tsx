@@ -91,7 +91,7 @@ export function Settings() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Configure your BirdNET-Pi</p>
+          <p className="text-muted-foreground">Configure BirdVibes</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           {saved ? (
@@ -128,7 +128,7 @@ export function Settings() {
             <Input
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
-              placeholder="BirdNET-Pi"
+              placeholder="BirdVibes"
             />
           </div>
         </CardContent>
@@ -142,7 +142,7 @@ export function Settings() {
             Live Audio Stream
           </CardTitle>
           <CardDescription>
-            Listen to live audio from your BirdNET-Pi microphone
+            Listen to live audio from your microphone
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -430,7 +430,7 @@ export function Settings() {
             Data Sources
           </CardTitle>
           <CardDescription>
-            Information and media sources integrated into BirdNET-Pi
+            Information and media sources integrated into BirdVibes
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

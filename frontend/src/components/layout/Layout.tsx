@@ -46,7 +46,7 @@ export function Layout() {
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-border bg-card md:block">
         <div className="flex h-16 items-center gap-2 border-b border-border px-4">
           <Bird className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold">BirdNET-Pi</span>
+          <span className="text-xl font-bold">BirdVibes</span>
         </div>
         <nav className="p-4 space-y-1">
           {navItems.map((item) => {
@@ -80,7 +80,7 @@ export function Layout() {
       <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
           <Bird className="h-6 w-6 text-primary" />
-          <span className="font-bold">BirdNET-Pi</span>
+          <span className="font-bold">BirdVibes</span>
         </div>
         <Button
           variant="ghost"

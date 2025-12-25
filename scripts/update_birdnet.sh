@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Update BirdNET-Pi's Git Repo
+# Update BirdVibes from Git
 source /etc/birdnet/birdnet.conf
 trap 'exit 1' SIGINT SIGHUP
 
@@ -84,6 +84,15 @@ $my_dir/pre_update.sh
 
 sudo systemctl daemon-reload
 sudo ln -sf $my_dir/* /usr/local/bin/
+
+# Build the React frontend if Node.js is available
+if command -v node &> /dev/null; then
+  echo "Building frontend..."
+  $my_dir/build_frontend.sh
+else
+  echo "Node.js not found, skipping frontend build"
+  echo "Install Node.js 18+ to enable the React frontend"
+fi
 
 # The script below handles changes to the host system
 # Any additions to the updater should be placed in that file.

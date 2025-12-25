@@ -63,7 +63,7 @@ export function LiveStream() {
           Live Audio
         </h1>
         <p className="text-muted-foreground">
-          Listen to live audio from your BirdNET-Pi microphone
+          Listen to live audio from your microphone
         </p>
       </div>
 
@@ -148,14 +148,14 @@ export function LiveStream() {
             <div className="text-center p-4 bg-destructive/10 text-destructive rounded-lg">
               <p className="font-medium">Stream Unavailable</p>
               <p className="text-sm mt-1">
-                Make sure the livestream service is running on your BirdNET-Pi
+                Make sure the livestream service is running
               </p>
             </div>
           )}
 
           {/* Info */}
           <div className="text-center text-sm text-muted-foreground space-y-1">
-            <p>Audio is streamed directly from your BirdNET-Pi microphone</p>
+            <p>Audio is streamed directly from your microphone</p>
             <p className="text-xs">
               Tip: Keep this tab open while birding to hear what your station picks up
             </p>
@@ -170,13 +170,13 @@ export function LiveStream() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>
-            The live stream uses Icecast2 to broadcast audio from your BirdNET-Pi's
-            microphone in real-time. This is the same audio that BirdNET analyzes
-            for bird detections.
+            The live stream uses Icecast2 to broadcast audio from your microphone
+            in real-time. This is the same audio that BirdNET analyzes for bird
+            detections.
           </p>
           <p>
-            The stream is protected with the same authentication as your BirdNET-Pi
-            web interface.
+            The stream is protected with the same authentication as the web
+            interface.
           </p>
         </CardContent>
       </Card>
