@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Slider } from '@/components/ui/slider'
+import { Slider } from '@/components/ui/Slider'
 import { Radio, Play, Pause, Volume2, VolumeX, Loader2, WifiOff } from 'lucide-react'
 
 type StreamStatus = 'idle' | 'connecting' | 'playing' | 'error'
@@ -129,8 +129,8 @@ export function LiveStream() {
               )}
             </Button>
             <Slider
-              value={[isMuted ? 0 : volume]}
-              onValueChange={([v]) => {
+              value={isMuted ? 0 : volume}
+              onValueChange={(v) => {
                 setVolume(v)
                 if (v > 0) setIsMuted(false)
               }}
