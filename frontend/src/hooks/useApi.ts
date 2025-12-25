@@ -155,3 +155,78 @@ export function useOrnithophile(sciName: string) {
     staleTime: 86400000, // 24h cache - data rarely changes
   })
 }
+
+// eBird
+export function useEBirdConfig() {
+  return useQuery({
+    queryKey: ['ebird', 'config'],
+    queryFn: api.getEBirdConfig,
+    staleTime: 60000,
+  })
+}
+
+export function useEBirdObservations(sciName: string, params?: { days?: number; dist?: number }) {
+  return useQuery({
+    queryKey: ['ebird', 'observations', sciName, params],
+    queryFn: () => api.getEBirdObservations(sciName, params),
+    enabled: !!sciName,
+    retry: false,
+    staleTime: 300000, // 5 min cache
+  })
+}
+
+export function useEBirdHotspots(dist = 50) {
+  return useQuery({
+    queryKey: ['ebird', 'hotspots', dist],
+    queryFn: () => api.getEBirdHotspots(dist),
+    retry: false,
+    staleTime: 600000, // 10 min cache
+  })
+}
+
+export function useEBirdHotspotsForSpecies(sciName: string) {
+  return useQuery({
+    queryKey: ['ebird', 'hotspots', 'species', sciName],
+    queryFn: () => api.getEBirdHotspotsForSpecies(sciName),
+    enabled: !!sciName,
+    retry: false,
+    staleTime: 600000,
+  })
+}
+
+export function useEBirdNotable(params?: { days?: number; dist?: number }) {
+  return useQuery({
+    queryKey: ['ebird', 'notable', params],
+    queryFn: () => api.getEBirdNotable(params),
+    retry: false,
+    staleTime: 300000,
+  })
+}
+
+export function useEBirdFrequency(sciName: string) {
+  return useQuery({
+    queryKey: ['ebird', 'frequency', sciName],
+    queryFn: () => api.getEBirdFrequency(sciName),
+    enabled: !!sciName,
+    retry: false,
+    staleTime: 86400000, // 24h cache - frequency data is historical
+  })
+}
+
+export function useEBirdRegion() {
+  return useQuery({
+    queryKey: ['ebird', 'region'],
+    queryFn: api.getEBirdRegion,
+    retry: false,
+    staleTime: 86400000, // 24h cache
+  })
+}
+
+// Collection
+export function useCollection() {
+  return useQuery({
+    queryKey: ['collection'],
+    queryFn: api.getCollection,
+    staleTime: 300000, // 5 min cache
+  })
+}

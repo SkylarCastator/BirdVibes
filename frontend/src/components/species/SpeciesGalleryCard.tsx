@@ -54,6 +54,7 @@ export function SpeciesGalleryCard({ species, className }: SpeciesGalleryCardPro
           src={imageUrl}
           alt={species.com_name}
           className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
+          style={{ imageRendering: 'auto' }}
           loading="lazy"
         />
       ) : (
