@@ -80,13 +80,13 @@ export function ImageGallery({ images, isLoading }: ImageGalleryProps) {
           <div className="relative">
             {/* Main image */}
             <div
-              className="aspect-video bg-muted rounded-lg overflow-hidden cursor-pointer"
+              className="aspect-video bg-muted rounded-lg overflow-hidden cursor-pointer flex items-center justify-center"
               onClick={() => setLightboxOpen(true)}
             >
               <img
                 src={fixImageUrl(currentImage.url)}
                 alt={currentImage.title || 'Bird photo'}
-                className="w-full h-full object-cover hover:scale-105 transition-transform"
+                className="max-w-full max-h-full object-contain hover:scale-105 transition-transform"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none'
                 }}
