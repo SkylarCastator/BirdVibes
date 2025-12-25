@@ -166,9 +166,4 @@ This project inherits the licensing from BirdNET-Pi. See [LICENSE](LICENSE) for 
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## Screenshots
-
-![Overview](docs/overview.png)
-![Spectrogram](docs/spectrogram.png)
+Contributions are welcome! Please feel free to submit issues and pull requests
