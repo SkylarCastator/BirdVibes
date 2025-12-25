@@ -37,14 +37,14 @@ BirdVibes is a modern React-based web interface for BirdNET-Pi, providing an enh
 ### Fresh Install
 
 ```bash
-curl -s https://raw.githubusercontent.com/YOUR_USERNAME/BirdVibes/main/newinstaller.sh | bash
+curl -s https://raw.githubusercontent.com/SkylarCastator/BirdVibes/main/newinstaller.sh | bash
 ```
 
 ### Upgrading from BirdNET-Pi
 
 ```bash
 cd ~/BirdNET-Pi
-git remote set-url origin https://github.com/YOUR_USERNAME/BirdVibes.git
+git remote set-url origin https://github.com/SkylarCastator/BirdVibes.git
 git fetch origin
 git reset --hard origin/main
 ./scripts/update_birdnet.sh

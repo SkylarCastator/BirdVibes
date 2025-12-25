@@ -44,8 +44,7 @@ if [[ ! -z $PACKAGES_MISSING ]] ; then
 fi
 
 branch=main
-# Change this URL to your BirdVibes fork
-git clone -b $branch --depth=1 https://github.com/YOUR_USERNAME/BirdVibes.git ${HOME}/BirdNET-Pi &&
+git clone -b $branch --depth=1 https://github.com/SkylarCastator/BirdVibes.git ${HOME}/BirdNET-Pi &&
 
 $HOME/BirdNET-Pi/scripts/install_birdnet.sh
 if [ ${PIPESTATUS[0]} -eq 0 ];then
