@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X, Grid3X3, Radio } from 'lucide-react'
+import { KiwiIcon } from '@/components/icons/KiwiIcon'
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSpeciesList, useConfig } from '@/hooks/useApi'
@@ -45,7 +46,7 @@ export function Layout() {
       {/* Desktop sidebar */}
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-border bg-card md:block">
         <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-          <Bird className="h-8 w-8 text-primary" />
+          <KiwiIcon className="h-8 w-8 text-primary" />
           <span className="text-xl font-bold">BirdVibes</span>
         </div>
         <nav className="p-4 space-y-1">
@@ -79,7 +80,7 @@ export function Layout() {
       {/* Mobile header */}
       <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
-          <Bird className="h-6 w-6 text-primary" />
+          <KiwiIcon className="h-6 w-6 text-primary" />
           <span className="font-bold">BirdVibes</span>
         </div>
         <Button
