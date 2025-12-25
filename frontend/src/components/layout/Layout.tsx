@@ -1,20 +1,32 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X, Grid3X3, Radio } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { useSpeciesList } from '@/hooks/useApi'
+import { useNewBirds } from '@/hooks/useNewBirds'
 
 const navItems = [
   { path: '/', label: 'Overview', icon: Home },
   { path: '/detections', label: 'Detections', icon: Bird },
   { path: '/species', label: 'Species', icon: BarChart3 },
+  { path: '/collection', label: 'Collection', icon: Grid3X3 },
   { path: '/recordings', label: 'Recordings', icon: Calendar },
   { path: '/analytics', label: 'Analytics', icon: TrendingUp },
+  { path: '/live', label: 'Live', icon: Radio },
   { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function Layout() {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Track new birds for notification badge
+  const { data: speciesList } = useSpeciesList()
+  const discoveredSpecies = useMemo(() =>
+    speciesList?.map(s => s.sci_name) ?? [],
+    [speciesList]
+  )
+  const { newCount } = useNewBirds(discoveredSpecies)
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,6 +40,7 @@ export function Layout() {
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.path
+            const showBadge = item.path === '/collection' && newCount > 0
             return (
               <Link
                 key={item.path}
@@ -39,7 +52,12 @@ export function Layout() {
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {newCount > 9 ? '9+' : newCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -79,6 +97,7 @@ export function Layout() {
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.path
+            const showBadge = item.path === '/collection' && newCount > 0
             return (
               <Link
                 key={item.path}
@@ -91,7 +110,12 @@ export function Layout() {
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {newCount > 9 ? '9+' : newCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -110,15 +134,23 @@ export function Layout() {
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path
+          const showBadge = item.path === '/collection' && newCount > 0
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 px-3 py-2 text-xs ${
+              className={`relative flex flex-col items-center gap-1 px-3 py-2 text-xs ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <Icon className="h-5 w-5" />
+              <div className="relative">
+                <Icon className="h-5 w-5" />
+                {showBadge && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
+                    {newCount > 9 ? '!' : newCount}
+                  </span>
+                )}
+              </div>
               {item.label}
             </Link>
           )

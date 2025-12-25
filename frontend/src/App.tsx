@@ -6,8 +6,10 @@ import { Overview } from '@/pages/Overview'
 import { Detections } from '@/pages/Detections'
 import { Species } from '@/pages/Species'
 import { SpeciesDetail } from '@/pages/SpeciesDetail'
+import { Collection } from '@/pages/Collection'
 import { Recordings } from '@/pages/Recordings'
 import { Analytics } from '@/pages/Analytics'
+import { LiveStream } from '@/pages/LiveStream'
 import { Settings } from '@/pages/Settings'
 
 const queryClient = new QueryClient({
@@ -30,8 +32,10 @@ function App() {
             <Route path="detections" element={<Detections />} />
             <Route path="species" element={<Species />} />
             <Route path="species/:sciName" element={<SpeciesDetail />} />
+            <Route path="collection" element={<Collection />} />
             <Route path="recordings" element={<Recordings />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="live" element={<LiveStream />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
