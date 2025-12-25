@@ -1,33 +1,59 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X, Grid3X3, Radio } from 'lucide-react'
+import { KiwiIcon } from '@/components/icons/KiwiIcon'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { useSpeciesList, useConfig } from '@/hooks/useApi'
+import { useNewBirds } from '@/hooks/useNewBirds'
 
-const navItems = [
+const allNavItems = [
   { path: '/', label: 'Overview', icon: Home },
   { path: '/detections', label: 'Detections', icon: Bird },
   { path: '/species', label: 'Species', icon: BarChart3 },
+  { path: '/collection', label: 'Collection', icon: Grid3X3 },
   { path: '/recordings', label: 'Recordings', icon: Calendar },
   { path: '/analytics', label: 'Analytics', icon: TrendingUp },
+  { path: '/live', label: 'Live', icon: Radio },
   { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function Layout() {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { data: config } = useConfig()
+
+  // Filter nav items based on config
+  const navItems = useMemo(() => {
+    return allNavItems.filter(item => {
+      // Hide Live if livestream is disabled
+      if (item.path === '/live' && config?.livestream_enabled === false) {
+        return false
+      }
+      return true
+    })
+  }, [config?.livestream_enabled])
+
+  // Track new birds for notification badge
+  const { data: speciesList } = useSpeciesList()
+  const discoveredSpecies = useMemo(() =>
+    speciesList?.map(s => s.sci_name) ?? [],
+    [speciesList]
+  )
+  const { newCount } = useNewBirds(discoveredSpecies)
 
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-border bg-card md:block">
         <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-          <Bird className="h-8 w-8 text-primary" />
-          <span className="text-xl font-bold">BirdNET-Pi</span>
+          <KiwiIcon className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold">BirdVibes</span>
         </div>
         <nav className="p-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.path
+            const showBadge = item.path === '/collection' && newCount > 0
             return (
               <Link
                 key={item.path}
@@ -39,7 +65,12 @@ export function Layout() {
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {newCount > 9 ? '9+' : newCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -49,8 +80,8 @@ export function Layout() {
       {/* Mobile header */}
       <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
         <div className="flex items-center gap-2">
-          <Bird className="h-6 w-6 text-primary" />
-          <span className="font-bold">BirdNET-Pi</span>
+          <KiwiIcon className="h-6 w-6 text-primary" />
+          <span className="font-bold">BirdVibes</span>
         </div>
         <Button
           variant="ghost"
@@ -79,6 +110,7 @@ export function Layout() {
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = location.pathname === item.path
+            const showBadge = item.path === '/collection' && newCount > 0
             return (
               <Link
                 key={item.path}
@@ -91,7 +123,12 @@ export function Layout() {
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {newCount > 9 ? '9+' : newCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -110,15 +147,23 @@ export function Layout() {
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path
+          const showBadge = item.path === '/collection' && newCount > 0
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center gap-1 px-3 py-2 text-xs ${
+              className={`relative flex flex-col items-center gap-1 px-3 py-2 text-xs ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <Icon className="h-5 w-5" />
+              <div className="relative">
+                <Icon className="h-5 w-5" />
+                {showBadge && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
+                    {newCount > 9 ? '!' : newCount}
+                  </span>
+                )}
+              </div>
               {item.label}
             </Link>
           )

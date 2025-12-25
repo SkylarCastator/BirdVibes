@@ -1,10 +1,14 @@
+import { useMemo } from 'react'
 import { useParams, Link } from 'react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useSpeciesDetail, useSpeciesDetections, useBirdWeatherRecordings, useConfig, useOrnithophile } from '@/hooks/useApi'
+import { useSpeciesDetail, useSpeciesDetections, useBirdWeatherRecordings, useConfig, useOrnithophile, useEBirdFrequency, useEBirdObservations, useEBirdHotspotsForSpecies } from '@/hooks/useApi'
 import { SpectrogramPlayer } from '@/components/audio/SpectrogramPlayer'
 import { AudioSpectrumPlayer } from '@/components/audio/AudioSpectrumPlayer'
-import { ArrowLeft, ExternalLink, Calendar, TrendingUp, Bird, Clock, Percent, Cloud, Volume2, Shield, Feather } from 'lucide-react'
+import { FrequencyHeatmap, ObservationMap, HotspotsList } from '@/components/ebird'
+import { ImageGallery } from '@/components/species/ImageGallery'
+import { ReferenceCalls } from '@/components/species/ReferenceCalls'
+import { ArrowLeft, ExternalLink, Calendar, TrendingUp, Bird, Clock, Percent, Cloud, Shield, Feather, Map, BookOpen, GraduationCap } from 'lucide-react'
 import type { Detection } from '@/lib/types'
 
 function getAudioUrl(detection: Detection): string {
@@ -25,6 +29,69 @@ export function SpeciesDetail() {
     5
   )
   const { data: ornithophile } = useOrnithophile(sciName ?? '')
+
+  // eBird data
+  const { data: ebirdFrequency, isLoading: freqLoading, error: freqError } = useEBirdFrequency(sciName ?? '')
+  const { data: ebirdObservations, isLoading: obsLoading, error: obsError } = useEBirdObservations(sciName ?? '')
+  const { data: ebirdHotspots, isLoading: hotspotsLoading, error: hotspotsError } = useEBirdHotspotsForSpecies(sciName ?? '')
+
+  // Prepare gallery images from all sources
+  const galleryImages = useMemo(() => {
+    const images: Array<{ url: string; title?: string; source?: string; sourceUrl?: string }> = []
+
+    // Add main species image
+    if (species?.image?.image_url) {
+      images.push({
+        url: species.image.image_url,
+        title: species.image.title,
+        source: 'Primary',
+        sourceUrl: species.image.photos_url ?? species.image.author_url
+      })
+    }
+
+    // Add ornithophile images
+    if (ornithophile) {
+      if (ornithophile.male_image) {
+        images.push({ url: ornithophile.male_image, title: 'Male', source: 'Ornithophile' })
+      }
+      if (ornithophile.female_image) {
+        images.push({ url: ornithophile.female_image, title: 'Female', source: 'Ornithophile' })
+      }
+      ornithophile.other_images?.forEach((img) => {
+        if (img.source) {
+          images.push({ url: img.source, title: img.name, source: 'Gallery' })
+        }
+      })
+    }
+
+    return images
+  }, [species, ornithophile])
+
+  // Prepare audio sources
+  const audioSources = useMemo(() => {
+    const sources: Array<{
+      url: string
+      title?: string
+      recordist?: string
+      source: 'xeno-canto' | 'macaulay' | 'other'
+      sourceUrl?: string
+      quality?: string
+    }> = []
+
+    if (ornithophile?.sound) {
+      // Parse Xeno-Canto URL to get recording ID
+      const xcMatch = ornithophile.sound.match(/xeno-canto\.org\/(\d+)/)
+      sources.push({
+        url: ornithophile.sound,
+        title: species?.com_name ?? 'Recording',
+        source: 'xeno-canto',
+        sourceUrl: xcMatch ? `https://xeno-canto.org/${xcMatch[1]}` : ornithophile.sound,
+        quality: 'A'
+      })
+    }
+
+    return sources
+  }, [ornithophile, species])
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Loading...</div>
@@ -108,32 +175,83 @@ export function SpeciesDetail() {
             </CardContent>
           </Card>
 
-          <div className="flex flex-col gap-2">
-            <a
-              href={species.info_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button className="w-full">
-                Learn more on {species.info_site}
-                <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-            </a>
-            {species.wikipedia_url && (
+          {/* External Links */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Learn More</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
               <a
-                href={species.wikipedia_url}
+                href={species.info_url}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
               >
-                <Button variant="outline" className="w-full">
-                  View on Wikipedia
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
+                <BookOpen className="h-4 w-4 text-primary" />
+                <span className="flex-1 text-sm">{species.info_site}</span>
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
               </a>
-            )}
-          </div>
+              <a
+                href={`https://www.allaboutbirds.org/guide/${encodeURIComponent(species.com_name.replace(/ /g, '_'))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <Bird className="h-4 w-4 text-orange-500" />
+                <span className="flex-1 text-sm">All About Birds Guide</span>
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </a>
+              {ebirdObservations?.[0]?.speciesCode && (
+                <>
+                  <a
+                    href={`https://ebird.org/species/${ebirdObservations[0].speciesCode}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <Map className="h-4 w-4 text-green-500" />
+                    <span className="flex-1 text-sm">eBird Species Page</span>
+                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  </a>
+                  <a
+                    href={`https://birdsoftheworld.org/bow/species/${ebirdObservations[0].speciesCode}/cur/introduction`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <GraduationCap className="h-4 w-4 text-purple-500" />
+                    <span className="flex-1 text-sm">Birds of the World</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subscription</span>
+                    <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  </a>
+                </>
+              )}
+              {species.wikipedia_url && (
+                <a
+                  href={species.wikipedia_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <BookOpen className="h-4 w-4 text-blue-500" />
+                  <span className="flex-1 text-sm">Wikipedia</span>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                </a>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Photo Gallery - shows all available images */}
+      {galleryImages.length > 0 && (
+        <ImageGallery images={galleryImages} />
+      )}
+
+      {/* Reference Calls */}
+      {audioSources.length > 0 && (
+        <ReferenceCalls sources={audioSources} />
+      )}
 
       {/* About this species */}
       {species.description && (
@@ -147,27 +265,47 @@ export function SpeciesDetail() {
         </Card>
       )}
 
-      {/* Reference call from Ornithophile */}
-      {ornithophile?.sound && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5" />
-              Reference Call
-            </CardTitle>
-            <CardDescription>
-              Typical vocalization for this species
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AudioSpectrumPlayer
-              audioUrl={ornithophile.sound}
-              title={species.com_name}
-              subtitle="Reference recording"
+      {/* eBird Data Section */}
+      {config?.ebird_enabled && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <img
+              src="https://cdn.iconscout.com/icon/free/png-256/ebird-282445.png"
+              alt="eBird"
+              className="w-5 h-5"
+              onError={(e) => (e.currentTarget.style.display = 'none')}
             />
-          </CardContent>
-        </Card>
+            eBird Data
+          </h2>
+
+          {/* Frequency Heatmap */}
+          <FrequencyHeatmap
+            data={ebirdFrequency ?? []}
+            isLoading={freqLoading}
+            error={freqError}
+          />
+
+          {/* Observations Map & Hotspots in a grid */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <ObservationMap
+              observations={ebirdObservations ?? []}
+              centerLat={config.latitude}
+              centerLng={config.longitude}
+              isLoading={obsLoading}
+              error={obsError}
+              speciesName={species.com_name}
+            />
+            <HotspotsList
+              hotspots={ebirdHotspots ?? []}
+              isLoading={hotspotsLoading}
+              error={hotspotsError}
+              forSpecies={true}
+              speciesName={species.com_name}
+            />
+          </div>
+        </div>
       )}
+
 
       {/* Conservation & Taxonomy from Ornithophile */}
       {ornithophile && (ornithophile.conservation_status || ornithophile.order) && (

@@ -1,46 +1,48 @@
 import { Link } from 'react-router'
-import { useSpeciesList } from '@/hooks/useApi'
+import { useSpeciesList, useSpeciesDetail } from '@/hooks/useApi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Bird, ChevronRight } from 'lucide-react'
-import { useState, useEffect } from 'react'
-import { api } from '@/lib/api'
-import type { SpeciesDetail, BirdImage } from '@/lib/types'
+import type { Species } from '@/lib/types'
 
-interface BirdWithImage {
-  sci_name: string
-  com_name: string
-  count: number
-  image?: BirdImage | null
+// Individual bird card that fetches its own image via React Query (cached)
+function BirdCard({ species }: { species: Species }) {
+  const { data: detail } = useSpeciesDetail(species.sci_name)
+  const imageUrl = detail?.image?.image_url
+
+  return (
+    <Link
+      to={`/species/${encodeURIComponent(species.sci_name)}`}
+      className="group relative aspect-square rounded-xl overflow-hidden bg-muted"
+    >
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={species.com_name}
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          loading="lazy"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Bird className="h-12 w-12 text-muted-foreground/40" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 p-2">
+        <p className="text-white text-sm font-medium truncate">{species.com_name}</p>
+        <p className="text-white/70 text-xs">{species.count} detections</p>
+      </div>
+      <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+        {species.count}
+      </div>
+    </Link>
+  )
 }
 
 export function RecentBirdsGrid() {
-  const { data: species } = useSpeciesList({ sort: 'recent' })
-  const [birdsWithImages, setBirdsWithImages] = useState<BirdWithImage[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: species, isLoading } = useSpeciesList({ sort: 'recent' })
+  const recentSpecies = species?.slice(0, 8) ?? []
 
-  useEffect(() => {
-    async function fetchImages() {
-      if (!species?.length) return
-
-      const recentSpecies = species.slice(0, 8)
-      const results = await Promise.all(
-        recentSpecies.map(async (s) => {
-          try {
-            const detail: SpeciesDetail = await api.getSpeciesDetail(s.sci_name)
-            return { ...s, image: detail.image }
-          } catch {
-            return { ...s, image: null }
-          }
-        })
-      )
-      setBirdsWithImages(results)
-      setLoading(false)
-    }
-
-    fetchImages()
-  }, [species])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -73,32 +75,8 @@ export function RecentBirdsGrid() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {birdsWithImages.map((bird) => (
-            <Link
-              key={bird.sci_name}
-              to={`/species/${encodeURIComponent(bird.sci_name)}`}
-              className="group relative aspect-square rounded-xl overflow-hidden bg-muted"
-            >
-              {bird.image?.image_url ? (
-                <img
-                  src={bird.image.image_url}
-                  alt={bird.com_name}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Bird className="h-12 w-12 text-muted-foreground/40" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-2">
-                <p className="text-white text-sm font-medium truncate">{bird.com_name}</p>
-                <p className="text-white/70 text-xs">{bird.count} detections</p>
-              </div>
-              <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                {bird.count}
-              </div>
-            </Link>
+          {recentSpecies.map((bird) => (
+            <BirdCard key={bird.sci_name} species={bird} />
           ))}
         </div>
       </CardContent>

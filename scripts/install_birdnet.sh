@@ -51,6 +51,10 @@ install_birdnet() {
 
 install_birdnet
 
+# Build React frontend
+echo "Building frontend..."
+$my_dir/scripts/build_frontend.sh || echo "Frontend build failed, continuing..."
+
 cd $my_dir/scripts || exit 1
 
 # tzlocal.get_localzone() will fail if the Debian specific /etc/timezone is not in sync

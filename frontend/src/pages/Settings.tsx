@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { useConfig, useBirdWeatherStats } from '@/hooks/useApi'
+import { useConfig, useBirdWeatherStats, useEBirdRegion } from '@/hooks/useApi'
 import { api, type ConfigUpdate } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle } from 'lucide-react'
+import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 type ColorScheme = 'light' | 'dark'
 type InfoSite = 'ALLABOUTBIRDS' | 'EBIRD'
@@ -14,6 +15,7 @@ type ImageProvider = 'WIKIPEDIA' | 'FLICKR'
 export function Settings() {
   const { data: config, isLoading } = useConfig()
   const { data: birdweatherStats, isLoading: bwLoading, error: bwError } = useBirdWeatherStats()
+  const { data: ebirdRegion, isLoading: regionLoading, error: regionError } = useEBirdRegion()
   const queryClient = useQueryClient()
 
   const [siteName, setSiteName] = useState('')
@@ -23,6 +25,8 @@ export function Settings() {
   const [infoSite, setInfoSite] = useState<InfoSite>('ALLABOUTBIRDS')
   const [imageProvider, setImageProvider] = useState<ImageProvider>('WIKIPEDIA')
   const [birdweatherToken, setBirdweatherToken] = useState('')
+  const [ebirdApiKey, setEbirdApiKey] = useState('')
+  const [livestreamEnabled, setLivestreamEnabled] = useState(true)
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -36,6 +40,7 @@ export function Settings() {
       setColorScheme((config.color_scheme as ColorScheme) || 'dark')
       setInfoSite((config.info_site as InfoSite) || 'ALLABOUTBIRDS')
       setImageProvider((config.image_provider as ImageProvider) || 'WIKIPEDIA')
+      setLivestreamEnabled(config.livestream_enabled ?? true)
     }
   }, [config])
 
@@ -52,17 +57,23 @@ export function Settings() {
         COLOR_SCHEME: colorScheme,
         INFO_SITE: infoSite,
         IMAGE_PROVIDER: imageProvider,
+        LIVESTREAM_ENABLED: livestreamEnabled,
       }
 
-      // Only update BirdWeather token if user entered a new one
+      // Only update tokens if user entered new ones
       if (birdweatherToken) {
         update.BIRDWEATHER_TOKEN = birdweatherToken
+      }
+      if (ebirdApiKey) {
+        update.EBIRD_API_KEY = ebirdApiKey
       }
 
       await api.saveConfig(update)
       await queryClient.invalidateQueries({ queryKey: ['config'] })
       await queryClient.invalidateQueries({ queryKey: ['birdweather'] })
-      setBirdweatherToken('') // Clear the input after save
+      await queryClient.invalidateQueries({ queryKey: ['collection'] })
+      setBirdweatherToken('') // Clear inputs after save
+      setEbirdApiKey('')
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -81,7 +92,7 @@ export function Settings() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="text-muted-foreground">Configure your BirdNET-Pi</p>
+          <p className="text-muted-foreground">Configure BirdVibes</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           {saved ? (
@@ -118,7 +129,34 @@ export function Settings() {
             <Input
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
-              placeholder="BirdNET-Pi"
+              placeholder="BirdVibes"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Live Stream */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Radio className="h-5 w-5" />
+            Live Audio Stream
+          </CardTitle>
+          <CardDescription>
+            Listen to live audio from your microphone
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-sm">Enable Live Stream</p>
+              <p className="text-xs text-muted-foreground">
+                Show the Live Audio page in navigation
+              </p>
+            </div>
+            <Switch
+              checked={livestreamEnabled}
+              onCheckedChange={setLivestreamEnabled}
             />
           </div>
         </CardContent>
@@ -278,7 +316,14 @@ export function Settings() {
               placeholder={config?.birdweather_enabled ? config.birdweather_token : 'Enter your BirdWeather token'}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Find your token at app.birdweather.com under your station settings
+              <a
+                href="https://app.birdweather.com/login"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Get your token at app.birdweather.com
+              </a>
             </p>
           </div>
 
@@ -326,6 +371,144 @@ export function Settings() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* eBird Integration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Binoculars className="h-5 w-5" />
+            eBird
+          </CardTitle>
+          <CardDescription>
+            Enable regional species data, observations, hotspots, and frequency analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">API Key</label>
+            <Input
+              type="password"
+              value={ebirdApiKey}
+              onChange={(e) => setEbirdApiKey(e.target.value)}
+              placeholder={config?.ebird_enabled ? '••••••••' : 'Enter your eBird API key'}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              <a
+                href="https://ebird.org/api/keygen"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Get a free API key at ebird.org/api/keygen
+              </a>
+            </p>
+          </div>
+
+          {/* eBird Status */}
+          <div className="flex items-center gap-2 text-sm">
+            {config?.ebird_enabled ? (
+              <>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="text-green-600 dark:text-green-400">Connected</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Not configured</span>
+              </>
+            )}
+          </div>
+
+          {/* Region Info */}
+          {config?.ebird_enabled && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Region</span>
+              </div>
+              {regionLoading ? (
+                <p className="text-sm text-muted-foreground mt-1">Detecting region...</p>
+              ) : regionError ? (
+                <p className="text-sm text-destructive mt-1">Could not detect region: {regionError.message}</p>
+              ) : ebirdRegion ? (
+                <div className="mt-1">
+                  <p className="text-sm">{ebirdRegion.region_name}</p>
+                  <p className="text-xs text-muted-foreground">Code: {ebirdRegion.region_code}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">Set your location to enable regional data</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Data Sources */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Data Sources
+          </CardTitle>
+          <CardDescription>
+            Information and media sources integrated into BirdVibes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3">
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">eBird</p>
+                <p className="text-xs text-muted-foreground">Regional species, observations, hotspots, frequency data</p>
+              </div>
+              <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                Visit
+              </a>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">BirdWeather</p>
+                <p className="text-xs text-muted-foreground">Station statistics, community detections, audio recordings</p>
+              </div>
+              <a href="https://app.birdweather.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                Visit
+              </a>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">All About Birds</p>
+                <p className="text-xs text-muted-foreground">Species information, identification tips, sounds</p>
+              </div>
+              <a href="https://allaboutbirds.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                Visit
+              </a>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">Birds of the World</p>
+                <p className="text-xs text-muted-foreground">Comprehensive species accounts (subscription)</p>
+              </div>
+              <a href="https://birdsoftheworld.org" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs">
+                Visit
+              </a>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">Wikipedia / Wikimedia</p>
+                <p className="text-xs text-muted-foreground">Bird images (free, no API key needed)</p>
+              </div>
+              <span className="text-xs text-muted-foreground">Free</span>
+            </div>
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex-1">
+                <p className="font-medium text-sm">Flickr</p>
+                <p className="text-xs text-muted-foreground">Creative Commons bird photos</p>
+              </div>
+              <span className="text-xs text-muted-foreground">Free</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

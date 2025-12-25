@@ -7,11 +7,15 @@ import {
   useAnalyticsTopSpecies,
   useAnalyticsSeasonal,
   useAnalyticsSummary,
+  useConfig,
+  useEBirdNotable,
+  useEBirdHotspots,
 } from '@/hooks/useApi'
 import { TimelineChart } from '@/components/analytics/TimelineChart'
 import { HourlyChart } from '@/components/analytics/HourlyChart'
 import { TopSpeciesChart } from '@/components/analytics/TopSpeciesChart'
 import { SeasonalChart } from '@/components/analytics/SeasonalChart'
+import { NotableSightings, HotspotsList } from '@/components/ebird'
 import { Bird, Calendar, TrendingUp, Clock } from 'lucide-react'
 
 type TimeRange = 30 | 90 | 365
@@ -43,11 +47,16 @@ function StatCard({ title, value, icon: Icon, subtitle }: {
 export function Analytics() {
   const [days, setDays] = useState<TimeRange>(30)
 
+  const { data: config } = useConfig()
   const { data: summary, isLoading: summaryLoading } = useAnalyticsSummary()
   const { data: timeline, isLoading: timelineLoading } = useAnalyticsTimeline(days)
   const { data: hourly, isLoading: hourlyLoading } = useAnalyticsHourly(days)
   const { data: topSpecies, isLoading: topSpeciesLoading } = useAnalyticsTopSpecies(days)
   const { data: seasonal, isLoading: seasonalLoading } = useAnalyticsSeasonal()
+
+  // eBird data
+  const { data: ebirdNotable, isLoading: notableLoading, error: notableError } = useEBirdNotable()
+  const { data: ebirdHotspots, isLoading: hotspotsLoading, error: hotspotsError } = useEBirdHotspots()
 
   const formatHour = (hour: string) => {
     const h = parseInt(hour)
@@ -125,6 +134,22 @@ export function Analytics() {
 
       {/* Seasonal chart - full width */}
       <SeasonalChart data={seasonal ?? []} isLoading={seasonalLoading} />
+
+      {/* eBird regional data */}
+      {config?.ebird_enabled && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <NotableSightings
+            observations={ebirdNotable ?? []}
+            isLoading={notableLoading}
+            error={notableError}
+          />
+          <HotspotsList
+            hotspots={ebirdHotspots ?? []}
+            isLoading={hotspotsLoading}
+            error={hotspotsError}
+          />
+        </div>
+      )}
 
       {/* Additional insights */}
       {summary && (

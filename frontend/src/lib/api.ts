@@ -13,6 +13,14 @@ import type {
   AnalyticsSummary,
   BirdWeatherStats,
   BirdWeatherRecordingsResponse,
+  EBirdObservation,
+  EBirdHotspot,
+  EBirdNotableObservation,
+  EBirdSpeciesHotspot,
+  EBirdFrequencyPoint,
+  EBirdConfig,
+  EBirdRegion,
+  CollectionSpecies,
 } from './types'
 
 const BASE_URL = '/api/v1'
@@ -20,11 +28,14 @@ const BASE_URL = '/api/v1'
 async function fetchApi<T>(endpoint: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${endpoint}`)
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`)
+    const text = await response.text()
+    console.error(`API error ${response.status} for ${endpoint}:`, text)
+    throw new Error(`API error: ${response.status} - ${text.slice(0, 100)}`)
   }
   const json: ApiResponse<T> = await response.json()
   if (json.status === 'error') {
-    throw new Error('API returned error')
+    console.error(`API returned error for ${endpoint}:`, json)
+    throw new Error(json.message || 'API returned error')
   }
   return json.data
 }
@@ -37,6 +48,8 @@ export interface ConfigUpdate {
   INFO_SITE?: string
   IMAGE_PROVIDER?: string
   BIRDWEATHER_TOKEN?: string
+  EBIRD_API_KEY?: string
+  LIVESTREAM_ENABLED?: boolean
 }
 
 export const api = {
@@ -130,4 +143,40 @@ export const api = {
 
   getBirdWeatherRecordings: (sciName: string, limit = 5) =>
     fetchApi<BirdWeatherRecordingsResponse>(`/birdweather/recordings/${encodeURIComponent(sciName)}?limit=${limit}`),
+
+  // eBird
+  getEBirdConfig: () =>
+    fetchApi<EBirdConfig>('/ebird/config'),
+
+  getEBirdObservations: (sciName: string, params?: { days?: number; dist?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.days) query.set('days', String(params.days))
+    if (params?.dist) query.set('dist', String(params.dist))
+    const qs = query.toString()
+    return fetchApi<EBirdObservation[]>(`/ebird/observations/${encodeURIComponent(sciName)}${qs ? `?${qs}` : ''}`)
+  },
+
+  getEBirdHotspots: (dist = 50) =>
+    fetchApi<EBirdHotspot[]>(`/ebird/hotspots?dist=${dist}`),
+
+  getEBirdHotspotsForSpecies: (sciName: string) =>
+    fetchApi<EBirdSpeciesHotspot[]>(`/ebird/hotspots/${encodeURIComponent(sciName)}`),
+
+  getEBirdNotable: (params?: { days?: number; dist?: number }) => {
+    const query = new URLSearchParams()
+    if (params?.days) query.set('days', String(params.days))
+    if (params?.dist) query.set('dist', String(params.dist))
+    const qs = query.toString()
+    return fetchApi<EBirdNotableObservation[]>(`/ebird/notable${qs ? `?${qs}` : ''}`)
+  },
+
+  getEBirdFrequency: (sciName: string) =>
+    fetchApi<EBirdFrequencyPoint[]>(`/ebird/frequency/${encodeURIComponent(sciName)}`),
+
+  getEBirdRegion: () =>
+    fetchApi<EBirdRegion>('/ebird/region'),
+
+  // Collection
+  getCollection: () =>
+    fetchApi<CollectionSpecies[]>('/collection'),
 }
