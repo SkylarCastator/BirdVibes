@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/kiwi.png" width="300" />
+  <img src="docs/BirdVibes.jpeg" width="300" />
 </p>
 <h1 align="center">
   BirdVibes
@@ -170,5 +170,7 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## Screenshots
 
-![Overview](docs/overview.png)
-![Spectrogram](docs/spectrogram.png)
+![Dashboard](docs/dashboard_1.png)
+![Dashboard](docs/dashboard_2.png)
+![Information](docs/information.png)
+![Livestream](docs/livestream.png)
