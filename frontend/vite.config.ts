@@ -18,7 +18,10 @@ export default defineConfig({
       '/By_Date': 'http://localhost:8080',
       '/Charts': 'http://localhost:8080',
       '/stream': 'http://localhost:8000',
-      '/video-stream': 'http://localhost:8081',
+      '/video-stream': {
+        target: 'http://localhost:8081',
+        rewrite: (path) => path.replace(/^\/video-stream/, '/'),
+      },
     },
   },
 })

@@ -161,7 +161,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/health':
             self._handle_health()
-        elif self.path == '/':
+        elif self.path in ('/', '/video-stream'):
             self._handle_stream()
         else:
             self.send_error(404)
