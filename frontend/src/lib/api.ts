@@ -180,4 +180,8 @@ export const api = {
   // Collection
   getCollection: () =>
     fetchApi<CollectionSpecies[]>('/collection'),
+
+  // Video status/diagnostics
+  getVideoStatus: () =>
+    fetchApi<any>('/video-status'),
 }

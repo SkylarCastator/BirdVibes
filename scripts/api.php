@@ -65,6 +65,10 @@ try {
   elseif ($requestMethod === 'PUT' && $requestUri === '/api/v1/config') {
     handleSaveConfig();
   }
+  // GET /api/v1/video-status
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/video-status') {
+    handleVideoStatus();
+  }
   // GET /api/v1/image/{sci_name} (existing)
   elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/image/(\S+)$#', $requestUri, $matches)) {
     handleImage(urldecode($matches[1]));
@@ -491,6 +495,67 @@ function handleSaveConfig() {
   } else {
     sendError(500, 'Failed to save configuration');
   }
+}
+
+// GET /api/v1/video-status
+function handleVideoStatus() {
+  $config = get_config();
+  $port = $config['VIDEO_STREAM_PORT'] ?? '8081';
+
+  // Check for camera tools
+  $rpicamVid = trim(shell_exec('which rpicam-vid 2>/dev/null') ?? '');
+  $libcameraVid = trim(shell_exec('which libcamera-vid 2>/dev/null') ?? '');
+  $cameraToolFound = !empty($rpicamVid) || !empty($libcameraVid);
+  $cameraTool = !empty($rpicamVid) ? 'rpicam-vid' : (!empty($libcameraVid) ? 'libcamera-vid' : null);
+
+  // Check for video devices
+  $videoDevices = glob('/dev/video*') ?: [];
+
+  // Check if videostream service is running
+  $serviceActive = false;
+  $serviceStatus = trim(shell_exec('systemctl is-active videostream.service 2>/dev/null') ?? '');
+  $serviceActive = ($serviceStatus === 'active');
+
+  // Check service logs (last 20 lines)
+  $serviceLogs = trim(shell_exec('journalctl -u videostream.service --no-pager -n 20 2>/dev/null') ?? '');
+
+  // Try to reach the MJPEG server health endpoint
+  $healthData = null;
+  $serverReachable = false;
+  $ctx = stream_context_create(['http' => ['timeout' => 2]]);
+  $healthJson = @file_get_contents("http://localhost:$port/health", false, $ctx);
+  if ($healthJson !== false) {
+    $serverReachable = true;
+    $healthData = json_decode($healthJson, true);
+  }
+
+  // Check boot config for camera settings
+  $bootConfig = null;
+  foreach (['/boot/firmware/config.txt', '/boot/config.txt'] as $path) {
+    if (file_exists($path)) {
+      $content = file_get_contents($path);
+      $bootConfig = [
+        'path' => $path,
+        'camera_auto_detect' => (bool)preg_match('/^camera_auto_detect=1/m', $content),
+        'start_x' => (bool)preg_match('/^start_x=1/m', $content),
+      ];
+      break;
+    }
+  }
+
+  sendSuccess([
+    'enabled' => filter_var($config['VIDEO_STREAM_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+    'port' => (int)$port,
+    'camera_tool' => $cameraTool,
+    'camera_tool_found' => $cameraToolFound,
+    'video_devices' => $videoDevices,
+    'service_active' => $serviceActive,
+    'service_status' => $serviceStatus,
+    'service_logs' => $serviceLogs,
+    'server_reachable' => $serverReachable,
+    'server_health' => $healthData,
+    'boot_config' => $bootConfig,
+  ]);
 }
 
 // GET /api/v1/analytics/timeline
