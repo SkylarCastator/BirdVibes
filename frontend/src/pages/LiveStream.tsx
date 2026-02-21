@@ -28,6 +28,7 @@ interface VideoStatusData {
     has_frame: boolean
     video_devices: string[]
     available_tools: Record<string, boolean>
+    libcamera_cameras: string | null
   } | null
   boot_config: {
     path: string
@@ -313,11 +314,17 @@ export function LiveStream() {
                             ok={videoDiag.boot_config.camera_auto_detect}
                           />
                           <DiagRow
-                            label="start_x (camera firmware)"
-                            value={videoDiag.boot_config.start_x ? 'Enabled' : 'Disabled'}
-                            ok={videoDiag.boot_config.start_x}
+                            label="start_x (legacy camera)"
+                            value={videoDiag.boot_config.start_x ? 'Enabled (should be OFF!)' : 'Disabled'}
+                            ok={!videoDiag.boot_config.start_x}
                           />
                         </>
+                      )}
+                      {videoDiag.server_health?.libcamera_cameras && (
+                        <div className="pt-1">
+                          <p className="text-xs text-muted-foreground font-medium">Libcamera detected cameras:</p>
+                          <pre className="text-xs text-muted-foreground font-mono mt-0.5 whitespace-pre-wrap max-h-24 overflow-y-auto bg-black/10 rounded p-2">{videoDiag.server_health.libcamera_cameras}</pre>
+                        </div>
                       )}
                       {!videoDiag.boot_config && (
                         <DiagRow

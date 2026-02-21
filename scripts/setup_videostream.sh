@@ -65,18 +65,14 @@ if [ -n "$BOOT_CONFIG" ]; then
     echo "  camera_auto_detect=1: added"
   fi
 
-  # start_x=1
+  # start_x MUST be disabled on Bookworm+ — it conflicts with libcamera
   if grep -q "^start_x=1" "$BOOT_CONFIG"; then
-    echo "  start_x=1: already set"
+    sed -i 's/^start_x=1/start_x=0/' "$BOOT_CONFIG"
+    echo "  start_x=0: disabled (conflicts with libcamera on Bookworm+)"
   elif grep -q "^start_x=" "$BOOT_CONFIG"; then
-    sed -i 's/^start_x=.*/start_x=1/' "$BOOT_CONFIG"
-    echo "  start_x=1: updated"
-  elif grep -q "^#start_x=" "$BOOT_CONFIG"; then
-    sed -i 's/^#start_x=.*/start_x=1/' "$BOOT_CONFIG"
-    echo "  start_x=1: uncommented and set"
+    echo "  start_x: already not set to 1"
   else
-    echo "start_x=1" >> "$BOOT_CONFIG"
-    echo "  start_x=1: added"
+    echo "  start_x: not present (OK for libcamera)"
   fi
 
   # gpu_mem >= 128

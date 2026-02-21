@@ -74,6 +74,20 @@ def detect_video_devices():
     return sorted(glob.glob('/dev/video*'))
 
 
+def list_libcamera_cameras():
+    """Run rpicam-hello or libcamera-hello to list detected cameras."""
+    for cmd in ('rpicam-hello', 'libcamera-hello'):
+        try:
+            result = subprocess.run(
+                [cmd, '--list-cameras'],
+                capture_output=True, text=True, timeout=10,
+            )
+            return result.stdout + result.stderr
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    return 'No camera list tool available'
+
+
 def detect_camera_tools():
     """Check which camera tools are available."""
     tools = {}
@@ -155,6 +169,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
         """Return JSON diagnostics."""
         tools = detect_camera_tools()
         devices = detect_video_devices()
+        camera_list = list_libcamera_cameras()
         health = {
             'status': 'ok' if server_status['capture_running'] and frame_buffer.has_frame else 'error',
             'camera_command': server_status['camera_command'],
@@ -166,6 +181,7 @@ class MJPEGHandler(BaseHTTPRequestHandler):
             'has_frame': frame_buffer.has_frame,
             'video_devices': devices,
             'available_tools': tools,
+            'libcamera_cameras': camera_list.strip() if camera_list else None,
             'started_at': server_status['started_at'],
             'uptime_seconds': int(time.time() - server_status['started_at']) if server_status['started_at'] else 0,
         }
@@ -208,6 +224,7 @@ def find_camera_command(width, height, fps, quality):
     """Try rpicam-vid first, then libcamera-vid."""
     base_args = [
         '--codec', 'mjpeg',
+        '--nopreview',
         '--width', str(width),
         '--height', str(height),
         '--framerate', str(fps),

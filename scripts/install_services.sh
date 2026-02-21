@@ -410,13 +410,9 @@ configure_pi_camera() {
     echo "camera_auto_detect=1" >> "$BOOT_CONFIG"
   fi
 
-  # Enable start_x for camera firmware (needed on some Pi models)
-  if grep -q "^start_x=" "$BOOT_CONFIG"; then
-    sed -i 's/^start_x=.*/start_x=1/' "$BOOT_CONFIG"
-  elif grep -q "^#start_x=" "$BOOT_CONFIG"; then
-    sed -i 's/^#start_x=.*/start_x=1/' "$BOOT_CONFIG"
-  elif ! grep -q "^start_x=" "$BOOT_CONFIG"; then
-    echo "start_x=1" >> "$BOOT_CONFIG"
+  # start_x MUST be disabled on Bookworm+ — it conflicts with libcamera
+  if grep -q "^start_x=1" "$BOOT_CONFIG"; then
+    sed -i 's/^start_x=1/start_x=0/' "$BOOT_CONFIG"
   fi
 
   # Ensure GPU memory is sufficient for camera (minimum 128MB)
