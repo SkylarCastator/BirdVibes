@@ -14,6 +14,7 @@ import glob
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -272,7 +273,9 @@ def main():
         capture_thread.start()
 
     # Always start the HTTP server (so /health is reachable even without a camera)
+    HTTPServer.allow_reuse_address = True
     server = HTTPServer(('0.0.0.0', args.port), MJPEGHandler)
+    server.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     print(f'MJPEG server listening on port {args.port}')
     print(f'  Stream: http://0.0.0.0:{args.port}/')
     print(f'  Health: http://0.0.0.0:{args.port}/health')
