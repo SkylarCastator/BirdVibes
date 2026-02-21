@@ -39,9 +39,15 @@ http:// ${BIRDNETPI_URL} {
   basicauth /stream {
     birdnet ${HASHWORD}
   }
+  basicauth /video-stream {
+    birdnet ${HASHWORD}
+  }
 
   # Live audio stream
   reverse_proxy /stream localhost:8000
+
+  # Live video stream
+  reverse_proxy /video-stream localhost:8081
 
   # React SPA frontend
   handle {
@@ -73,6 +79,9 @@ http:// ${BIRDNETPI_URL} {
 
   # Live audio stream
   reverse_proxy /stream localhost:8000
+
+  # Live video stream
+  reverse_proxy /video-stream localhost:8081
 
   # React SPA frontend
   handle {

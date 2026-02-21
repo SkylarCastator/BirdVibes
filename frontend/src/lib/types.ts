@@ -59,6 +59,7 @@ export interface Config {
   ebird_api_key: string
   ebird_enabled: boolean
   livestream_enabled: boolean
+  video_stream_enabled: boolean
 }
 
 export interface BirdWeatherStats {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useConfig, useBirdWeatherStats, useEBirdRegion } from '@/hooks/useApi'
 import { api, type ConfigUpdate } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio } from 'lucide-react'
+import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio, Video } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 
 type ColorScheme = 'light' | 'dark'
@@ -27,6 +27,7 @@ export function Settings() {
   const [birdweatherToken, setBirdweatherToken] = useState('')
   const [ebirdApiKey, setEbirdApiKey] = useState('')
   const [livestreamEnabled, setLivestreamEnabled] = useState(true)
+  const [videoStreamEnabled, setVideoStreamEnabled] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -41,6 +42,7 @@ export function Settings() {
       setInfoSite((config.info_site as InfoSite) || 'ALLABOUTBIRDS')
       setImageProvider((config.image_provider as ImageProvider) || 'WIKIPEDIA')
       setLivestreamEnabled(config.livestream_enabled ?? true)
+      setVideoStreamEnabled(config.video_stream_enabled ?? false)
     }
   }, [config])
 
@@ -58,6 +60,7 @@ export function Settings() {
         INFO_SITE: infoSite,
         IMAGE_PROVIDER: imageProvider,
         LIVESTREAM_ENABLED: livestreamEnabled,
+        VIDEO_STREAM_ENABLED: videoStreamEnabled,
       }
 
       // Only update tokens if user entered new ones
@@ -140,23 +143,37 @@ export function Settings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Radio className="h-5 w-5" />
-            Live Audio Stream
+            Live Streaming
           </CardTitle>
           <CardDescription>
-            Listen to live audio from your microphone
+            Stream live audio and video from your station
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-sm">Enable Live Stream</p>
+              <p className="font-medium text-sm">Enable Audio Stream</p>
               <p className="text-xs text-muted-foreground">
-                Show the Live Audio page in navigation
+                Live audio from your microphone via Icecast2
               </p>
             </div>
             <Switch
               checked={livestreamEnabled}
               onCheckedChange={setLivestreamEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div>
+                <p className="font-medium text-sm">Enable Video Stream</p>
+                <p className="text-xs text-muted-foreground">
+                  Live video from your Raspberry Pi camera
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={videoStreamEnabled}
+              onCheckedChange={setVideoStreamEnabled}
             />
           </div>
         </CardContent>

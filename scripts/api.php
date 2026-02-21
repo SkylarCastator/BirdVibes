@@ -416,7 +416,8 @@ function handleGetConfig() {
     'birdweather_enabled' => !empty($bwToken),
     'ebird_api_key' => $ebirdKeyMasked,
     'ebird_enabled' => !empty($ebirdKey),
-    'livestream_enabled' => filter_var($livestreamEnabled, FILTER_VALIDATE_BOOLEAN)
+    'livestream_enabled' => filter_var($livestreamEnabled, FILTER_VALIDATE_BOOLEAN),
+    'video_stream_enabled' => filter_var($config['VIDEO_STREAM_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN)
   ]);
 }
 
@@ -471,7 +472,7 @@ function handleSaveConfig() {
   }
 
   // Allowed settings to update
-  $allowed = ['SITE_NAME', 'LATITUDE', 'LONGITUDE', 'COLOR_SCHEME', 'INFO_SITE', 'IMAGE_PROVIDER', 'BIRDWEATHER_TOKEN', 'EBIRD_API_KEY', 'LIVESTREAM_ENABLED'];
+  $allowed = ['SITE_NAME', 'LATITUDE', 'LONGITUDE', 'COLOR_SCHEME', 'INFO_SITE', 'IMAGE_PROVIDER', 'BIRDWEATHER_TOKEN', 'EBIRD_API_KEY', 'LIVESTREAM_ENABLED', 'VIDEO_STREAM_ENABLED'];
   $settings = [];
 
   foreach ($allowed as $key) {

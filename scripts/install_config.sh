@@ -74,6 +74,17 @@ CADDY_PWD=
 
 ICE_PWD=birdnetpi
 
+#-------------------------  Live Video Stream  ---------------------------------#
+#_____________The variables below configure/enable the live____________________#
+#_____________________________video stream.____________________________________#
+
+VIDEO_STREAM_ENABLED=false
+VIDEO_STREAM_PORT=8081
+VIDEO_STREAM_WIDTH=1280
+VIDEO_STREAM_HEIGHT=720
+VIDEO_STREAM_FPS=15
+VIDEO_STREAM_QUALITY=50
+
 #-----------------------  Web-hosting/Caddy File-server -----------------------#
 #_______The three variables below can be set to enable internet access_________#
 #____________to your data,(e.g., extractions, raw data, live___________________#
@@ -293,6 +304,7 @@ IDFILE=$HOME/BirdNET-Pi/IdentifiedSoFar.txt
 LogLevel_BirdnetRecordingService="error"
 LogLevel_LiveAudioStreamService="error"
 LogLevel_SpectrogramViewerService="error"
+LogLevel_VideoStreamService="error"
 EOF
 }
 

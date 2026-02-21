@@ -187,9 +187,15 @@ http:// ${BIRDNETPI_URL} {
   basicauth /stream {
     birdnet ${HASHWORD}
   }
+  basicauth /video-stream {
+    birdnet ${HASHWORD}
+  }
 
   # Live audio stream
   reverse_proxy /stream localhost:8000
+
+  # Live video stream
+  reverse_proxy /video-stream localhost:8081
 
   # React SPA frontend
   handle {
@@ -221,6 +227,9 @@ http:// ${BIRDNETPI_URL} {
 
   # Live audio stream
   reverse_proxy /stream localhost:8000
+
+  # Live video stream
+  reverse_proxy /video-stream localhost:8081
 
   # React SPA frontend
   handle {
@@ -398,6 +407,25 @@ EOF
   systemctl enable livestream.service
 }
 
+install_videostream_service() {
+  cat << EOF > $HOME/BirdNET-Pi/templates/videostream.service
+[Unit]
+Description=BirdNET-Pi Video Stream
+After=network-online.target
+Requires=network-online.target
+[Service]
+Restart=always
+Type=simple
+RestartSec=3
+User=${USER}
+ExecStart=/usr/local/bin/videostream.sh
+[Install]
+WantedBy=multi-user.target
+EOF
+  ln -sf $HOME/BirdNET-Pi/templates/videostream.service /usr/lib/systemd/system
+  systemctl enable videostream.service
+}
+
 install_cleanup_cron() {
   sed "s/\$USER/$USER/g" $my_dir/templates/cleanup.cron >> /etc/crontab
 }
@@ -442,6 +470,7 @@ install_services() {
   install_gotty_logs
   install_phpsysinfo
   install_livestream_service
+  install_videostream_service
   install_birdnet_mount
   install_cleanup_cron
   install_weekly_cron

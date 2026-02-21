@@ -50,6 +50,7 @@ export interface ConfigUpdate {
   BIRDWEATHER_TOKEN?: string
   EBIRD_API_KEY?: string
   LIVESTREAM_ENABLED?: boolean
+  VIDEO_STREAM_ENABLED?: boolean
 }
 
 export const api = {

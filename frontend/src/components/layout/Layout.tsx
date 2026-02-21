@@ -25,13 +25,13 @@ export function Layout() {
   // Filter nav items based on config
   const navItems = useMemo(() => {
     return allNavItems.filter(item => {
-      // Hide Live if livestream is disabled
-      if (item.path === '/live' && config?.livestream_enabled === false) {
+      // Hide Live if both audio and video streams are disabled
+      if (item.path === '/live' && config?.livestream_enabled === false && config?.video_stream_enabled === false) {
         return false
       }
       return true
     })
-  }, [config?.livestream_enabled])
+  }, [config?.livestream_enabled, config?.video_stream_enabled])
 
   // Track new birds for notification badge
   const { data: speciesList } = useSpeciesList()
