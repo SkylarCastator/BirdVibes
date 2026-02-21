@@ -17,6 +17,7 @@ export default defineConfig({
       '/api': 'http://localhost:8080',
       '/By_Date': 'http://localhost:8080',
       '/Charts': 'http://localhost:8080',
+      '/stream': 'http://localhost:8000',
     },
   },
 })
