@@ -18,6 +18,13 @@ HEIGHT="${VIDEO_STREAM_HEIGHT:-720}"
 FPS="${VIDEO_STREAM_FPS:-15}"
 QUALITY="${VIDEO_STREAM_QUALITY:-50}"
 
+# Kill any stale process on our port before starting
+# This prevents "Address already in use" errors on service restart
+if command -v fuser &>/dev/null; then
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
+  sleep 0.5
+fi
+
 # Log startup diagnostics
 echo "=== Video Stream Service Starting ==="
 echo "Config: ${WIDTH}x${HEIGHT} @ ${FPS}fps, quality=${QUALITY}, port=${PORT}"

@@ -459,9 +459,12 @@ Requires=network-online.target
 [Service]
 Restart=always
 Type=simple
-RestartSec=3
+RestartSec=5
 User=${USER}
+ExecStartPre=/bin/bash -c 'fuser -k 8081/tcp 2>/dev/null || true'
 ExecStart=/usr/local/bin/videostream.sh
+KillMode=mixed
+TimeoutStopSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
