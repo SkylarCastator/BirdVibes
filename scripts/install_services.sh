@@ -22,7 +22,8 @@ install_depends() {
   apt install --no-install-recommends -qqy caddy sqlite3 php-sqlite3 php-fpm php-curl php-xml php-zip php icecast2 \
     pulseaudio avahi-utils sox libsox-fmt-mp3 alsa-utils ffmpeg \
     wget curl unzip bc nodejs \
-    python3-pip python3-venv lsof net-tools inotify-tools
+    python3-pip python3-venv lsof net-tools inotify-tools \
+    rpicam-apps
 }
 
 set_hostname() {
@@ -388,6 +389,52 @@ config_icecast() {
   systemctl enable icecast2.service
 }
 
+configure_pi_camera() {
+  echo "Configuring Raspberry Pi camera"
+  # Determine boot config location (Bookworm+ uses /boot/firmware/, older uses /boot/)
+  if [ -f /boot/firmware/config.txt ]; then
+    BOOT_CONFIG=/boot/firmware/config.txt
+  elif [ -f /boot/config.txt ]; then
+    BOOT_CONFIG=/boot/config.txt
+  else
+    echo "No Raspberry Pi boot config found, skipping camera configuration"
+    return
+  fi
+
+  # Enable automatic camera detection (required for Pi Camera Module v2+)
+  if grep -q "^camera_auto_detect=" "$BOOT_CONFIG"; then
+    sed -i 's/^camera_auto_detect=.*/camera_auto_detect=1/' "$BOOT_CONFIG"
+  elif grep -q "^#camera_auto_detect=" "$BOOT_CONFIG"; then
+    sed -i 's/^#camera_auto_detect=.*/camera_auto_detect=1/' "$BOOT_CONFIG"
+  else
+    echo "camera_auto_detect=1" >> "$BOOT_CONFIG"
+  fi
+
+  # Enable start_x for camera firmware (needed on some Pi models)
+  if grep -q "^start_x=" "$BOOT_CONFIG"; then
+    sed -i 's/^start_x=.*/start_x=1/' "$BOOT_CONFIG"
+  elif grep -q "^#start_x=" "$BOOT_CONFIG"; then
+    sed -i 's/^#start_x=.*/start_x=1/' "$BOOT_CONFIG"
+  elif ! grep -q "^start_x=" "$BOOT_CONFIG"; then
+    echo "start_x=1" >> "$BOOT_CONFIG"
+  fi
+
+  # Ensure GPU memory is sufficient for camera (minimum 128MB)
+  if grep -q "^gpu_mem=" "$BOOT_CONFIG"; then
+    current_gpu_mem=$(grep "^gpu_mem=" "$BOOT_CONFIG" | head -1 | cut -d= -f2)
+    if [ "$current_gpu_mem" -lt 128 ] 2>/dev/null; then
+      sed -i 's/^gpu_mem=.*/gpu_mem=128/' "$BOOT_CONFIG"
+    fi
+  else
+    echo "gpu_mem=128" >> "$BOOT_CONFIG"
+  fi
+
+  # Add caddy user to video group so the reverse proxy can access camera if needed
+  usermod -aG video ${USER}
+
+  echo "Camera configured in $BOOT_CONFIG (reboot required for changes to take effect)"
+}
+
 install_livestream_service() {
   cat << EOF > $HOME/BirdNET-Pi/templates/livestream.service
 [Unit]
@@ -481,6 +528,7 @@ install_services() {
   generate_BirdDB
   configure_caddy_php
   config_icecast
+  configure_pi_camera
   USER=$USER HOME=$HOME ${my_dir}/scripts/createdb.sh
 }
 
