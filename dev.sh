@@ -1,5 +1,5 @@
 #!/bin/bash
-# BirdNET-Pi Development Server
+# BirdVibes Development Server
 # Runs both PHP backend and React frontend
 
 set -e
@@ -30,8 +30,27 @@ if ! command -v php &> /dev/null; then
     exit 1
 fi
 
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}Error: Node.js not installed${NC}"
+    echo "Install Node.js 20+ with:"
+    echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+    echo "  sudo apt install -y nodejs"
+    exit 1
+fi
+
 if ! command -v npm &> /dev/null; then
     echo -e "${RED}Error: npm not installed${NC}"
+    exit 1
+fi
+
+# Check Node.js version (Vite 7 requires Node 20+)
+NODE_MAJOR=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_MAJOR" -lt 20 ]; then
+    echo -e "${RED}Error: Node.js 20+ required (found $(node -v))${NC}"
+    echo "Vite 7 requires Node.js 20 or later."
+    echo "Upgrade with:"
+    echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+    echo "  sudo apt install -y nodejs"
     exit 1
 fi
 
@@ -65,13 +84,16 @@ fi
 # Set up dev environment
 setup_dev_env
 
-echo -e "${GREEN}Starting BirdNET-Pi Development Servers${NC}"
+echo -e "${GREEN}Starting BirdVibes Development Servers${NC}"
 echo "=================================="
 
-# Start PHP backend
+# Get local IP for network access
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+
+# Start PHP backend on all interfaces
 echo -e "${YELLOW}Starting PHP backend on :$PHP_PORT${NC}"
 cd "$SCRIPT_DIR"
-php -S localhost:$PHP_PORT router.php &
+php -S 0.0.0.0:$PHP_PORT router.php &
 PHP_PID=$!
 
 sleep 1
@@ -90,8 +112,11 @@ VITE_PID=$!
 
 echo ""
 echo -e "${GREEN}Servers running:${NC}"
-echo -e "  Frontend: ${GREEN}http://localhost:$VITE_PORT${NC}"
-echo -e "  Backend:  ${GREEN}http://localhost:$PHP_PORT${NC}"
+echo -e "  Local:   ${GREEN}http://localhost:$VITE_PORT${NC}"
+if [ -n "$LOCAL_IP" ]; then
+echo -e "  Network: ${GREEN}http://$LOCAL_IP:$VITE_PORT${NC}"
+fi
+echo -e "  Backend: ${GREEN}http://localhost:$PHP_PORT${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
 

@@ -17,14 +17,19 @@ echo -e "${GREEN}Building BirdVibes Frontend${NC}"
 # Check for Node.js
 if ! command -v node &> /dev/null; then
     echo -e "${RED}Error: Node.js not installed${NC}"
-    echo "Install with: curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && sudo apt install -y nodejs"
+    echo "Install Node.js 20+ with:"
+    echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+    echo "  sudo apt install -y nodejs"
     exit 1
 fi
 
-# Check Node version
+# Check Node version (Vite 7 requires Node 20+)
 NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo -e "${RED}Error: Node.js 18+ required (found v$NODE_VERSION)${NC}"
+if [ "$NODE_VERSION" -lt 20 ]; then
+    echo -e "${RED}Error: Node.js 20+ required (found $(node -v))${NC}"
+    echo "Vite 7 requires Node.js 20 or later. Upgrade with:"
+    echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+    echo "  sudo apt install -y nodejs"
     exit 1
 fi
 

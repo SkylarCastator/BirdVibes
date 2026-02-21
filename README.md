@@ -30,7 +30,7 @@ BirdVibes is a modern React-based web interface for BirdNET-Pi, providing an enh
 - Raspberry Pi 5, 4B, 400, 3B+, or 0W2
 - 64-bit RaspiOS (Bookworm or Trixie recommended)
 - USB Microphone or Sound Card
-- Node.js 18+ (for frontend build)
+- Node.js 20+ (for frontend build — Vite 7 requires Node 20 or later)
 
 ## Installation
 
@@ -71,7 +71,7 @@ This will pull the latest code, build the React frontend, and update your Caddy 
 sudo ./scripts/update_caddyfile.sh
 ```
 
-> **Note:** Node.js 18+ is required for the frontend build. If it's not installed, the update script will skip the frontend build and show instructions for installing Node.js.
+> **Note:** Node.js 20+ is required for the frontend build. If it's not installed, the update script will skip the frontend build and show instructions for installing Node.js.
 
 ### Uninstalling
 
@@ -152,8 +152,8 @@ The production build outputs to `frontend/dist/` which is served by the PHP rout
 ### Prerequisites
 
 - PHP 8.x with SQLite support
-- Node.js 18+
-- npm or yarn
+- Node.js 20+
+- npm
 
 ### Running Locally
 
