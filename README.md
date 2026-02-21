@@ -18,6 +18,7 @@ BirdVibes is a modern React-based web interface for BirdNET-Pi, providing an enh
 - **Species Collection** - Pokedex-style collection with rarity badges
 - **eBird Integration** - Regional species data, observations, hotspots, frequency heatmaps
 - **BirdWeather Integration** - Station stats and community recordings
+- **Live Video Stream** - Watch your Pi camera feed in the browser (MJPEG)
 - **Live Audio Stream** - Listen to your microphone in real-time
 - **Image Gallery** - Multiple image sources (Wikipedia, Flickr, Ornithophile)
 - **Reference Calls** - Audio samples from Xeno-Canto
@@ -31,6 +32,7 @@ BirdVibes is a modern React-based web interface for BirdNET-Pi, providing an enh
 - 64-bit RaspiOS (Bookworm or Trixie recommended)
 - USB Microphone or Sound Card
 - Node.js 20+ (for frontend build — Vite 7 requires Node 20 or later)
+- Raspberry Pi Camera Module (optional, for live video stream)
 
 ## Installation
 
@@ -147,6 +149,105 @@ npm run build
 
 The production build outputs to `frontend/dist/` which is served by the PHP router.
 
+## Live Video Stream Setup
+
+BirdVibes supports live video streaming from a Raspberry Pi Camera Module using MJPEG. The stream appears on the Live Feed page alongside the audio player.
+
+### Supported Cameras
+
+- Raspberry Pi Camera Module 2 (IMX219)
+- Raspberry Pi Camera Module 3 (IMX708)
+- Any CSI camera supported by `libcamera`
+
+### How It Works
+
+The video pipeline is:
+
+```
+Pi Camera → rpicam-vid (MJPEG) → mjpeg_server.py (HTTP) → browser <img> tag
+```
+
+`rpicam-vid` captures MJPEG frames using the Pi's hardware encoder and pipes them to a lightweight Python HTTP server (`scripts/mjpeg_server.py`) that serves them as `multipart/x-mixed-replace`. This works in a plain `<img>` tag in all browsers with minimal CPU usage and low latency.
+
+### Quick Setup (Existing Installation)
+
+If you already have BirdVibes installed and want to add video streaming:
+
+```bash
+cd ~/BirdNET-Pi
+sudo ./scripts/setup_videostream.sh
+```
+
+This script will:
+1. Install `rpicam-apps` if not already present
+2. Configure boot settings (`camera_auto_detect=1`, disable legacy `start_x`)
+3. Install and start the `videostream` systemd service
+4. Add your user to the `video` group
+
+After setup, enable the video stream in **Settings > Live Streaming > Enable Video Stream**.
+
+### Boot Configuration
+
+The setup script configures `/boot/firmware/config.txt` (or `/boot/config.txt`) for the libcamera stack:
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| `camera_auto_detect` | `1` | Enables automatic camera detection |
+| `start_x` | `0` | **Must be disabled** — conflicts with libcamera on Bookworm+ |
+| `gpu_mem` | `128` | Minimum GPU memory for camera operation |
+
+> **Important:** If `start_x=1` is set, the camera will not work. The libcamera stack used by Bookworm+ is incompatible with the legacy camera firmware. The setup script handles this automatically.
+
+### Configuration Options
+
+These settings are in `/etc/birdnet/birdnet.conf` and can be adjusted:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `VIDEO_STREAM_ENABLED` | `false` | Enable/disable the video stream (also toggled in Settings UI) |
+| `VIDEO_STREAM_PORT` | `8081` | HTTP port for the MJPEG server |
+| `VIDEO_STREAM_WIDTH` | `1280` | Capture width in pixels |
+| `VIDEO_STREAM_HEIGHT` | `720` | Capture height in pixels |
+| `VIDEO_STREAM_FPS` | `15` | Frames per second |
+| `VIDEO_STREAM_QUALITY` | `50` | JPEG quality (1-100, lower = smaller/faster) |
+
+### Troubleshooting Video
+
+**Check if the camera is detected:**
+
+```bash
+rpicam-hello --list-cameras
+```
+
+You should see your camera listed (e.g., `imx219 [3280x2464 10-bit]`).
+
+**Check the video stream service:**
+
+```bash
+sudo systemctl status videostream.service
+journalctl -u videostream.service -n 50
+```
+
+**Check the MJPEG server health endpoint:**
+
+```bash
+curl http://localhost:8081/health | python3 -m json.tool
+```
+
+This returns JSON with camera status, frame count, errors, and detected cameras.
+
+**The Live Feed page also has a built-in diagnostics panel** that appears when the video stream fails to connect, showing camera tool status, video devices, service status, frame count, boot config, and libcamera camera list.
+
+**Common issues:**
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| "No cameras available" | `start_x=1` in boot config | Run `sudo ./scripts/setup_videostream.sh` (disables `start_x`) and reboot |
+| "No cameras available" | Camera ribbon cable loose | Reseat the cable and reboot |
+| "Address already in use" | Stale process on port 8081 | `sudo fuser -k 8081/tcp` then restart service |
+| "Device or resource busy" | Multiple instances of rpicam-vid | Kill all: `sudo pkill rpicam-vid` then restart service |
+| Frames captured = 0 | Camera not connected or not detected | Check `rpicam-hello --list-cameras` and cable connection |
+
 ## Development Setup
 
 ### Prerequisites
@@ -154,38 +255,50 @@ The production build outputs to `frontend/dist/` which is served by the PHP rout
 - PHP 8.x with SQLite support
 - Node.js 20+
 - npm
+- Python 3 (for MJPEG video server)
 
 ### Running Locally
 
-1. Start the PHP backend:
+The easiest way to run everything is with the dev script:
+
 ```bash
-php -S 0.0.0.0:8080 router.php
+./dev.sh
 ```
 
-2. Start the frontend dev server:
-```bash
-cd frontend
-npm run dev
-```
+This starts three servers:
+- **PHP backend** on port 8080
+- **MJPEG video server** on port 8081
+- **Vite frontend** on port 5173
 
-3. Access at http://localhost:5173
+Access the app at `http://localhost:5173` (or your Pi's IP for network access).
+
+Press `Ctrl+C` to stop all servers.
+
+> **Note:** On a non-Pi machine, the video server will start but report no camera found. The `/health` endpoint is still available for testing. On a Pi with a camera module, the video stream will work in dev mode.
 
 ### Project Structure
 
 ```
 BirdVibes/
-├── frontend/           # React frontend (Vite + TypeScript)
+├── frontend/                # React frontend (Vite + TypeScript)
 │   ├── src/
-│   │   ├── components/ # UI components
-│   │   ├── pages/      # Page components
-│   │   ├── hooks/      # React hooks
-│   │   └── lib/        # Utilities and API
-│   └── dist/           # Production build output
-├── scripts/            # Backend PHP scripts and shell scripts
-│   ├── api.php         # REST API endpoints
-│   ├── ebird_api.php   # eBird integration
-│   └── common.php      # Shared utilities
-└── model/              # BirdNET model files
+│   │   ├── components/      # UI components
+│   │   ├── pages/           # Page components (LiveStream, Settings, etc.)
+│   │   ├── hooks/           # React hooks
+│   │   └── lib/             # Utilities, API client, types
+│   └── dist/                # Production build output
+├── scripts/
+│   ├── api.php              # REST API endpoints
+│   ├── ebird_api.php        # eBird integration
+│   ├── common.php           # Shared utilities
+│   ├── mjpeg_server.py      # MJPEG HTTP streaming server
+│   ├── videostream.sh       # Video stream service wrapper
+│   ├── setup_videostream.sh # Video stream setup (camera + service)
+│   ├── install_services.sh  # Full system service installer
+│   └── install_config.sh    # Default configuration generator
+├── templates/               # Systemd service unit files
+├── dev.sh                   # Development server launcher
+└── model/                   # BirdNET model files
 ```
 
 ## API Configuration
