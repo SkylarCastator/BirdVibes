@@ -14,27 +14,30 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-PIDS=()
+CLEANED_UP=false
 
 cleanup() {
+    if [ "$CLEANED_UP" = true ]; then return; fi
+    CLEANED_UP=true
+
     echo -e "\n${YELLOW}Shutting down servers...${NC}"
-    # Kill all tracked child processes and their descendants
-    for pid in "${PIDS[@]}"; do
-        # Kill the process tree rooted at this PID
-        pkill -P "$pid" 2>/dev/null || true
-        kill "$pid" 2>/dev/null || true
-    done
-    # Wait briefly for graceful shutdown
+
+    # Kill all child processes of this script (recursive)
+    pkill -TERM -P $$ 2>/dev/null || true
     sleep 1
-    # Force-kill anything still listening on our ports
-    fuser -k ${PHP_PORT}/tcp 2>/dev/null || true
-    fuser -k ${VITE_PORT}/tcp 2>/dev/null || true
-    wait 2>/dev/null || true
+    pkill -KILL -P $$ 2>/dev/null || true
+
+    # Force-release ports in case anything survived
+    fuser -k -TERM ${PHP_PORT}/tcp 2>/dev/null || true
+    fuser -k -TERM ${VITE_PORT}/tcp 2>/dev/null || true
+    sleep 0.5
+    fuser -k -KILL ${PHP_PORT}/tcp 2>/dev/null || true
+    fuser -k -KILL ${VITE_PORT}/tcp 2>/dev/null || true
+
     echo -e "${GREEN}Stopped.${NC}"
-    exit 0
 }
 
-trap cleanup SIGINT SIGTERM EXIT
+trap cleanup EXIT
 
 # Check dependencies
 if ! command -v php &> /dev/null; then
@@ -97,6 +100,10 @@ fi
 # Set up dev environment
 setup_dev_env
 
+# Kill anything already on our ports
+fuser -k -KILL ${PHP_PORT}/tcp 2>/dev/null || true
+fuser -k -KILL ${VITE_PORT}/tcp 2>/dev/null || true
+
 echo -e "${GREEN}Starting BirdVibes Development Servers${NC}"
 echo "=================================="
 
@@ -107,12 +114,11 @@ LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo -e "${YELLOW}Starting PHP backend on :$PHP_PORT${NC}"
 cd "$SCRIPT_DIR"
 php -S 0.0.0.0:$PHP_PORT router.php &
-PIDS+=($!)
 
 sleep 1
 
 # Check if PHP started
-if ! kill -0 ${PIDS[0]} 2>/dev/null; then
+if ! fuser ${PHP_PORT}/tcp &>/dev/null; then
     echo -e "${RED}Failed to start PHP server${NC}"
     exit 1
 fi
@@ -121,7 +127,6 @@ fi
 echo -e "${YELLOW}Starting React frontend on :$VITE_PORT${NC}"
 cd "$SCRIPT_DIR/frontend"
 npm run dev &
-PIDS+=($!)
 
 echo ""
 echo -e "${GREEN}Servers running:${NC}"
