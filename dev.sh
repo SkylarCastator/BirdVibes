@@ -1,12 +1,13 @@
 #!/bin/bash
 # BirdVibes Development Server
-# Runs both PHP backend and React frontend
+# Runs PHP backend, React frontend, and MJPEG video stream server
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PHP_PORT=8080
 VITE_PORT=5173
+VIDEO_PORT=8081
 
 # Colors
 RED='\033[0;31m'
@@ -30,9 +31,11 @@ cleanup() {
     # Force-release ports in case anything survived
     fuser -k -TERM ${PHP_PORT}/tcp 2>/dev/null || true
     fuser -k -TERM ${VITE_PORT}/tcp 2>/dev/null || true
+    fuser -k -TERM ${VIDEO_PORT}/tcp 2>/dev/null || true
     sleep 0.5
     fuser -k -KILL ${PHP_PORT}/tcp 2>/dev/null || true
     fuser -k -KILL ${VITE_PORT}/tcp 2>/dev/null || true
+    fuser -k -KILL ${VIDEO_PORT}/tcp 2>/dev/null || true
 
     echo -e "${GREEN}Stopped.${NC}"
 }
@@ -103,6 +106,7 @@ setup_dev_env
 # Kill anything already on our ports
 fuser -k -KILL ${PHP_PORT}/tcp 2>/dev/null || true
 fuser -k -KILL ${VITE_PORT}/tcp 2>/dev/null || true
+fuser -k -KILL ${VIDEO_PORT}/tcp 2>/dev/null || true
 
 echo -e "${GREEN}Starting BirdVibes Development Servers${NC}"
 echo "=================================="
@@ -123,6 +127,19 @@ if ! fuser ${PHP_PORT}/tcp &>/dev/null; then
     exit 1
 fi
 
+# Start MJPEG video stream server
+echo -e "${YELLOW}Starting video stream server on :$VIDEO_PORT${NC}"
+cd "$SCRIPT_DIR"
+python3 scripts/mjpeg_server.py --port $VIDEO_PORT &
+
+sleep 1
+
+if fuser ${VIDEO_PORT}/tcp &>/dev/null; then
+    echo -e "  ${GREEN}Video stream server running${NC}"
+else
+    echo -e "  ${YELLOW}Video stream server started (check /health for camera status)${NC}"
+fi
+
 # Start Vite frontend
 echo -e "${YELLOW}Starting React frontend on :$VITE_PORT${NC}"
 cd "$SCRIPT_DIR/frontend"
@@ -130,11 +147,13 @@ npm run dev &
 
 echo ""
 echo -e "${GREEN}Servers running:${NC}"
-echo -e "  Local:   ${GREEN}http://localhost:$VITE_PORT${NC}"
+echo -e "  Local:     ${GREEN}http://localhost:$VITE_PORT${NC}"
 if [ -n "$LOCAL_IP" ]; then
-echo -e "  Network: ${GREEN}http://$LOCAL_IP:$VITE_PORT${NC}"
+echo -e "  Network:   ${GREEN}http://$LOCAL_IP:$VITE_PORT${NC}"
 fi
-echo -e "  Backend: ${GREEN}http://localhost:$PHP_PORT${NC}"
+echo -e "  Backend:   ${GREEN}http://localhost:$PHP_PORT${NC}"
+echo -e "  Video:     ${GREEN}http://localhost:$VIDEO_PORT${NC}"
+echo -e "  V. Health: ${GREEN}http://localhost:$VIDEO_PORT/health${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
 
