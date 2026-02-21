@@ -36,18 +36,96 @@ BirdVibes is a modern React-based web interface for BirdNET-Pi, providing an enh
 
 ### Fresh Install
 
+For a clean Raspberry Pi with no previous BirdNET-Pi installation:
+
 ```bash
 curl -s https://raw.githubusercontent.com/SkylarCastator/BirdVibes/main/newinstaller.sh | bash
 ```
 
+The installer will clone the repository to `~/BirdNET-Pi`, set up the Python environment, build the React frontend, and configure all services. The Pi will reboot automatically when finished.
+
 ### Upgrading from BirdNET-Pi
+
+If you have an existing BirdNET-Pi installation (from [mcguirepr89](https://github.com/mcguirepr89/BirdNET-Pi) or [Nachtzuster](https://github.com/Nachtzuster/BirdNET-Pi)), you can upgrade in-place. Your detection data and configuration will be preserved.
+
+**1. Point your repo to BirdVibes:**
 
 ```bash
 cd ~/BirdNET-Pi
 git remote set-url origin https://github.com/SkylarCastator/BirdVibes.git
 git fetch origin
 git reset --hard origin/main
+```
+
+**2. Run the update script:**
+
+```bash
 ./scripts/update_birdnet.sh
+```
+
+This will pull the latest code, build the React frontend, and update your Caddy web server configuration to serve the new UI.
+
+**3. Update the Caddy config** (if the new UI doesn't load after updating):
+
+```bash
+sudo ./scripts/update_caddyfile.sh
+```
+
+> **Note:** Node.js 18+ is required for the frontend build. If it's not installed, the update script will skip the frontend build and show instructions for installing Node.js.
+
+### Uninstalling
+
+To completely remove BirdVibes/BirdNET-Pi from your system:
+
+**1. Run the uninstall script:**
+
+```bash
+~/BirdNET-Pi/scripts/uninstall.sh
+```
+
+This removes all systemd services, cron jobs, Icecast, Avahi aliases, symlinked scripts, and the `/etc/birdnet/` configuration directory.
+
+**2. Remove the installation directory:**
+
+```bash
+rm -rf ~/BirdNET-Pi
+```
+
+**3. Optionally remove the database and recordings:**
+
+Your bird recordings and database are stored outside the install directory (location depends on your config in `/etc/birdnet/birdnet.conf`). Check `RECS_DIR` and `EXTRACTED` in your config if you want to remove those as well.
+
+### Clean Reinstall
+
+If you're having issues upgrading, you can do a clean reinstall while keeping your data:
+
+**1. Back up your data:**
+
+```bash
+# Save your config and database
+cp /etc/birdnet/birdnet.conf ~/birdnet.conf.backup
+cp ~/BirdNET-Pi/scripts/birds.db ~/birds.db.backup
+```
+
+**2. Uninstall and remove the old installation:**
+
+```bash
+~/BirdNET-Pi/scripts/uninstall.sh
+rm -rf ~/BirdNET-Pi
+```
+
+**3. Run a fresh install:**
+
+```bash
+curl -s https://raw.githubusercontent.com/SkylarCastator/BirdVibes/main/newinstaller.sh | bash
+```
+
+**4. Restore your data after the install completes and the Pi reboots:**
+
+```bash
+sudo cp ~/birdnet.conf.backup /etc/birdnet/birdnet.conf
+cp ~/birds.db.backup ~/BirdNET-Pi/scripts/birds.db
+sudo systemctl restart caddy
 ```
 
 ## Building the Frontend
@@ -107,7 +185,6 @@ BirdVibes/
 │   ├── api.php         # REST API endpoints
 │   ├── ebird_api.php   # eBird integration
 │   └── common.php      # Shared utilities
-├── homepage/           # Original PHP web interface
 └── model/              # BirdNET model files
 ```
 
@@ -143,11 +220,17 @@ BirdVibes integrates with multiple data sources:
 
 ## Updating
 
-Use the web interface: Tools > System Controls > Update
+To update an existing BirdVibes installation to the latest version:
 
-Or from command line:
 ```bash
-./scripts/update_birdnet.sh
+~/BirdNET-Pi/scripts/update_birdnet.sh
+```
+
+This pulls the latest code, rebuilds the React frontend, and applies any system-level changes. You can also specify a remote and branch:
+
+```bash
+# Update from a specific remote/branch
+~/BirdNET-Pi/scripts/update_birdnet.sh -r origin -b main
 ```
 
 ## Attribution

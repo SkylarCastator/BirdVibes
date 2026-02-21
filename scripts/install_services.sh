@@ -70,7 +70,6 @@ create_necessary_dirs() {
   sudo -u ${USER} ln -fs $my_dir/confirmed_species_list.txt $my_dir/scripts
   sudo -u ${USER} ln -fs $my_dir/include_species_list.txt $my_dir/scripts
   sudo -u ${USER} ln -fs $my_dir/whitelist_species_list.txt $my_dir/scripts
-  sudo -u ${USER} ln -fs $my_dir/homepage/* ${EXTRACTED}
   sudo -u ${USER} ln -fs $my_dir/model/labels.txt ${my_dir}/scripts
   sudo -u ${USER} ln -fs $my_dir/scripts ${EXTRACTED}
   sudo -u ${USER} ln -fs $my_dir/scripts/play.php ${EXTRACTED}
@@ -80,7 +79,6 @@ create_necessary_dirs() {
   sudo -u ${USER} ln -fs $my_dir/scripts/todays_detections.php ${EXTRACTED}
   sudo -u ${USER} ln -fs $my_dir/scripts/history.php ${EXTRACTED}
   sudo -u ${USER} ln -fs $my_dir/scripts/weekly_report.php ${EXTRACTED}
-  sudo -u ${USER} ln -fs $my_dir/homepage/images/favicon.ico ${EXTRACTED}
   sudo -u ${USER} ln -fs ${HOME}/phpsysinfo ${EXTRACTED}
   sudo -u ${USER} ln -fs $my_dir/templates/phpsysinfo.ini ${HOME}/phpsysinfo/
   sudo -u ${USER} ln -fs $my_dir/templates/green_bootstrap.css ${HOME}/phpsysinfo/templates/
@@ -152,6 +150,7 @@ EOF
 }
 
 install_Caddyfile() {
+  FRONTEND_DIR=$HOME/BirdNET-Pi/frontend/dist
   [ -d /etc/caddy ] || mkdir /etc/caddy
   if [ -f /etc/caddy/Caddyfile ];then
     cp /etc/caddy/Caddyfile{,.original}
@@ -160,55 +159,75 @@ install_Caddyfile() {
   HASHWORD=$(caddy hash-password --plaintext ${CADDY_PWD})
   cat << EOF > /etc/caddy/Caddyfile
 http:// ${BIRDNETPI_URL} {
-  root * ${EXTRACTED}
-  file_server browse
+  # API routes -> PHP
+  handle /api/* {
+    php_fastcgi unix//run/php/php-fpm.sock {
+      root $HOME/BirdNET-Pi/scripts
+    }
+  }
+
+  # Bird recordings browsing
   handle /By_Date/* {
+    root * ${EXTRACTED}
     file_server browse
   }
   handle /Charts/* {
+    root * ${EXTRACTED}
     file_server browse
   }
-  basicauth /views.php?view=File* {
-    birdnet ${HASHWORD}
+  handle /Processed/* {
+    basicauth {
+      birdnet ${HASHWORD}
+    }
+    root * ${EXTRACTED}
+    file_server browse
   }
-  basicauth /Processed* {
-    birdnet ${HASHWORD}
-  }
-  basicauth /scripts* {
-    birdnet ${HASHWORD}
-  }
+
+  # Protected routes
   basicauth /stream {
     birdnet ${HASHWORD}
   }
-  basicauth /phpsysinfo* {
-    birdnet ${HASHWORD}
-  }
-  basicauth /terminal* {
-    birdnet ${HASHWORD}
-  }
+
+  # Live audio stream
   reverse_proxy /stream localhost:8000
-  php_fastcgi unix//run/php/php-fpm.sock
-  reverse_proxy /log* localhost:8080
-  reverse_proxy /stats* localhost:8501
-  reverse_proxy /terminal* localhost:8888
+
+  # React SPA frontend
+  handle {
+    root * ${FRONTEND_DIR}
+    try_files {path} /index.html
+    file_server
+  }
 }
 EOF
   else
     cat << EOF > /etc/caddy/Caddyfile
 http:// ${BIRDNETPI_URL} {
-  root * ${EXTRACTED}
-  file_server browse
+  # API routes -> PHP
+  handle /api/* {
+    php_fastcgi unix//run/php/php-fpm.sock {
+      root $HOME/BirdNET-Pi/scripts
+    }
+  }
+
+  # Bird recordings browsing
   handle /By_Date/* {
+    root * ${EXTRACTED}
     file_server browse
   }
   handle /Charts/* {
+    root * ${EXTRACTED}
     file_server browse
   }
+
+  # Live audio stream
   reverse_proxy /stream localhost:8000
-  php_fastcgi unix//run/php/php-fpm.sock
-  reverse_proxy /log* localhost:8080
-  reverse_proxy /stats* localhost:8501
-  reverse_proxy /terminal* localhost:8888
+
+  # React SPA frontend
+  handle {
+    root * ${FRONTEND_DIR}
+    try_files {path} /index.html
+    file_server
+  }
 }
 EOF
   fi

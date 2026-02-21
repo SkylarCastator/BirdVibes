@@ -43,12 +43,6 @@ http:// ${BIRDNETPI_URL} {
   # Live audio stream
   reverse_proxy /stream localhost:8000
 
-  # Legacy PHP pages (optional)
-  handle /legacy/* {
-    root * $HOME/BirdNET-Pi/homepage
-    php_fastcgi unix//run/php/php-fpm.sock
-  }
-
   # React SPA frontend
   handle {
     root * ${FRONTEND_DIR}
