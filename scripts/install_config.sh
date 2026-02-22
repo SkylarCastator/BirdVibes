@@ -20,9 +20,7 @@ fi
 
 install_config() {
   cat << EOF > $birdnet_conf
-################################################################################
-#                    Configuration settings for BirdNET-Pi                     #
-################################################################################
+# Configuration settings for BirdNET-Pi
 
 # Optional: Site Title for banner
 

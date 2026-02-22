@@ -62,11 +62,17 @@ def spectrogram(in_file, title, comment, raw=0):
     height = img.size[1]
     width = img.size[0]
     draw = ImageDraw.Draw(img)
-    title_font = ImageFont.truetype(get_font()['path'], 13)
+    font_path = get_font()['path']
+    if font_path and os.path.isfile(font_path):
+        title_font = ImageFont.truetype(font_path, 13)
+        comment_font = ImageFont.truetype(font_path, 11)
+    else:
+        log.warning("Font file not found, using default font. Install fonts-dejavu-core for better spectrograms.")
+        title_font = ImageFont.load_default()
+        comment_font = title_font
     _, _, w, _ = draw.textbbox((0, 0), title, font=title_font)
     draw.text(((width-w)/2, 6), title, fill="white", font=title_font)
 
-    comment_font = ImageFont.truetype(get_font()['path'], 11)
     _, _, _, h = draw.textbbox((0, 0), comment, font=comment_font)
     draw.text((1, height - (h + 1)), comment, fill="white", font=comment_font)
     img.save(f'{in_file}.png')

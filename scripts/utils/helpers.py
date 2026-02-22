@@ -12,23 +12,59 @@ _settings = None
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DB_PATH = os.path.join(BASE_PATH, 'scripts/birds.db')
 MODEL_PATH = os.path.join(BASE_PATH, 'model')
-FONT_DIR = os.path.join(BASE_PATH, 'homepage/static')
 ANALYZING_NOW = os.path.expanduser('~/BirdSongs/StreamData/analyzing_now.txt')
+
+# Font search paths: project fonts dir, then common system font locations
+_FONT_SEARCH_PATHS = [
+    os.path.join(BASE_PATH, 'fonts'),
+    os.path.join(BASE_PATH, 'homepage/static'),
+    '/usr/share/fonts/truetype/dejavu',
+    '/usr/share/fonts/truetype/noto',
+    '/usr/share/fonts/truetype/roboto',
+    '/usr/share/fonts/truetype',
+]
+
+# Language-specific font preferences (name, filename patterns to search)
+_FONT_MAP = {
+    'ar': {'font.family': 'Noto Sans Arabic', 'files': ['NotoSansArabic-Regular.ttf']},
+    'ja': {'font.family': 'Noto Sans JP', 'files': ['NotoSansJP-Regular.ttf', 'NotoSansCJK-Regular.ttc']},
+    'zh_CN': {'font.family': 'Noto Sans JP', 'files': ['NotoSansJP-Regular.ttf', 'NotoSansCJK-Regular.ttc']},
+    'zh_TW': {'font.family': 'Noto Sans JP', 'files': ['NotoSansJP-Regular.ttf', 'NotoSansCJK-Regular.ttc']},
+    'ko': {'font.family': 'Noto Sans KR', 'files': ['NotoSansKR-Regular.ttf', 'NotoSansCJK-Regular.ttc']},
+    'th': {'font.family': 'Noto Sans Thai', 'files': ['NotoSansThai-Regular.ttf']},
+}
+_DEFAULT_FONT = {
+    'font.family': 'DejaVu Sans',
+    'files': ['RobotoFlex-Regular.ttf', 'Roboto-Regular.ttf', 'DejaVuSans.ttf', 'FreeSans.ttf'],
+}
+
+
+def _find_font(filenames):
+    """Search for a font file in known directories."""
+    for search_dir in _FONT_SEARCH_PATHS:
+        for fname in filenames:
+            path = os.path.join(search_dir, fname)
+            if os.path.isfile(path):
+                return path
+    # Recursive search in /usr/share/fonts as last resort
+    for fname in filenames:
+        for root, _dirs, files in os.walk('/usr/share/fonts'):
+            if fname in files:
+                return os.path.join(root, fname)
+    return None
 
 
 def get_font():
     conf = get_settings()
-    if conf['DATABASE_LANG'] == 'ar':
-        ret = {'font.family': 'Noto Sans Arabic', 'path': os.path.join(FONT_DIR, 'NotoSansArabic-Regular.ttf')}
-    elif conf['DATABASE_LANG'] in ['ja', 'zh_CN', 'zh_TW']:
-        ret = {'font.family': 'Noto Sans JP', 'path': os.path.join(FONT_DIR, 'NotoSansJP-Regular.ttf')}
-    elif conf['DATABASE_LANG'] == 'ko':
-        ret = {'font.family': 'Noto Sans KR', 'path': os.path.join(FONT_DIR, 'NotoSansKR-Regular.ttf')}
-    elif conf['DATABASE_LANG'] == 'th':
-        ret = {'font.family': 'Noto Sans Thai', 'path': os.path.join(FONT_DIR, 'NotoSansThai-Regular.ttf')}
-    else:
-        ret = {'font.family': 'Roboto Flex', 'path': os.path.join(FONT_DIR, 'RobotoFlex-Regular.ttf')}
-    return ret
+    lang = conf.get('DATABASE_LANG', 'en')
+    font_info = _FONT_MAP.get(lang, _DEFAULT_FONT)
+
+    path = _find_font(font_info['files'])
+    if path is None:
+        # Ultimate fallback: try any DejaVu font (installed on nearly all Linux)
+        path = _find_font(['DejaVuSans.ttf'])
+
+    return {'font.family': font_info['font.family'], 'path': path}
 
 
 class PHPConfigParser(ConfigParser):
