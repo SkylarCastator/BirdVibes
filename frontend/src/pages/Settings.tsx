@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useConfig, useBirdWeatherStats, useEBirdRegion } from '@/hooks/useApi'
 import { api, type ConfigUpdate } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
-import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio, Video } from 'lucide-react'
+import { Settings as SettingsIcon, MapPin, Palette, Image, ExternalLink, Save, Check, Cloud, AlertCircle, Binoculars, Database, CheckCircle2, XCircle, Radio, Video, Activity, RefreshCw, ChevronDown, ChevronUp, HardDrive, Mic, Cpu } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 
 type ColorScheme = 'light' | 'dark'
@@ -535,22 +535,348 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* System Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Model</span>
-            <span className="font-medium">{config?.model || 'Unknown'}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Language</span>
-            <span className="font-medium">{config?.database_lang?.toUpperCase() || 'EN'}</span>
-          </div>
-        </CardContent>
-      </Card>
+      {/* System Diagnostics */}
+      <SystemDiagnostics config={config} />
     </div>
+  )
+}
+
+// --- System Diagnostics Component ---
+
+interface SystemStatus {
+  services: Record<string, { label: string; active: boolean; status: string }>
+  recording_logs: string
+  analysis_logs: string
+  audio: {
+    rec_card: string
+    pulse_running: boolean
+    devices: string
+  }
+  pipeline: {
+    confidence: number
+    sensitivity: number
+    overlap: number
+    recording_length: number
+    rec_card: string
+    channels: number
+    recs_dir: string
+    model: string
+  }
+  recordings: {
+    stream_data_dir: string
+    dir_exists: boolean
+    wav_count: number
+    recent_files: { name: string; size: number; age_seconds: number }[]
+    analyzing_now: boolean
+  }
+  database: {
+    exists: boolean
+    size_bytes: number
+    recent_detections_1h: number
+    last_detection: string | null
+  }
+  disk: {
+    total_bytes: number
+    free_bytes: number
+    used_percent: number
+  }
+}
+
+function SystemDiagnostics({ config }: { config: any }) {
+  const [status, setStatus] = useState<SystemStatus | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showRecLogs, setShowRecLogs] = useState(false)
+  const [showAnalysisLogs, setShowAnalysisLogs] = useState(false)
+  const [showAudioDevices, setShowAudioDevices] = useState(false)
+
+  const fetchStatus = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await api.getSystemStatus()
+      setStatus(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch status')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStatus()
+  }, [])
+
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`
+    if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`
+    return `${bytes} B`
+  }
+
+  const formatAge = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    return `${Math.floor(seconds / 3600)}h ago`
+  }
+
+  const ServiceBadge = ({ active, status: svcStatus }: { active: boolean; status: string }) => (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+      active ? 'bg-green-500/10 text-green-600 dark:text-green-400' :
+      svcStatus === 'not-found' ? 'bg-muted text-muted-foreground' :
+      'bg-red-500/10 text-red-600 dark:text-red-400'
+    }`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${
+        active ? 'bg-green-500' :
+        svcStatus === 'not-found' ? 'bg-muted-foreground' :
+        'bg-red-500'
+      }`} />
+      {svcStatus}
+    </span>
+  )
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              System Diagnostics
+            </CardTitle>
+            <CardDescription>
+              Detection pipeline status, services, and audio configuration
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchStatus}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {error && (
+          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
+
+        {loading && !status && (
+          <p className="text-sm text-muted-foreground">Loading diagnostics...</p>
+        )}
+
+        {status && (
+          <>
+            {/* Services */}
+            <div>
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Cpu className="h-4 w-4" />
+                Services
+              </h4>
+              <div className="space-y-2">
+                {Object.entries(status.services).map(([key, svc]) => (
+                  <div key={key} className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-muted/50">
+                    <div>
+                      <p className="text-sm font-medium">{svc.label}</p>
+                      <p className="text-xs text-muted-foreground">{key}.service</p>
+                    </div>
+                    <ServiceBadge active={svc.active} status={svc.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Detection Pipeline */}
+            <div>
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                Detection Pipeline
+              </h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Recording</p>
+                  {status.recordings.dir_exists ? (
+                    <>
+                      <p className="text-sm font-medium">
+                        {status.recordings.wav_count} WAV files in queue
+                      </p>
+                      {status.recordings.analyzing_now && (
+                        <p className="text-xs text-green-600 dark:text-green-400">Analyzing now...</p>
+                      )}
+                      {status.recordings.recent_files.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Latest: {formatAge(status.recordings.recent_files[0].age_seconds)} ({formatBytes(status.recordings.recent_files[0].size)})
+                        </p>
+                      )}
+                      {status.recordings.recent_files.length === 0 && status.services.birdnet_recording?.active && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          No WAV files — recording may not be capturing audio
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-red-500">StreamData directory not found</p>
+                  )}
+                </div>
+
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Detections</p>
+                  <p className="text-sm font-medium">
+                    {status.database.recent_detections_1h} in the last hour
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {status.database.last_detection
+                      ? `Last: ${status.database.last_detection}`
+                      : 'No detections yet'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Pipeline Config */}
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="p-2 bg-muted/30 rounded">
+                  <p className="text-muted-foreground">Confidence</p>
+                  <p className="font-medium">{status.pipeline.confidence}</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded">
+                  <p className="text-muted-foreground">Sensitivity</p>
+                  <p className="font-medium">{status.pipeline.sensitivity}</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded">
+                  <p className="text-muted-foreground">Rec Length</p>
+                  <p className="font-medium">{status.pipeline.recording_length}s</p>
+                </div>
+                <div className="p-2 bg-muted/30 rounded">
+                  <p className="text-muted-foreground">Model</p>
+                  <p className="font-medium truncate">{status.pipeline.model.replace('BirdNET_GLOBAL_', '').replace('_Model_FP16', '')}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Audio */}
+            <div>
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                Audio
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Recording device</span>
+                  <span className="font-mono text-xs">{status.audio.rec_card}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">PulseAudio</span>
+                  <span className={status.audio.pulse_running ? 'text-green-600 dark:text-green-400' : 'text-red-500'}>
+                    {status.audio.pulse_running ? 'Running' : 'Not running'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Channels</span>
+                  <span>{status.pipeline.channels}</span>
+                </div>
+              </div>
+
+              {/* Audio devices expandable */}
+              {status.audio.devices && (
+                <div className="mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between text-xs"
+                    onClick={() => setShowAudioDevices(!showAudioDevices)}
+                  >
+                    Audio Devices (arecord -l)
+                    {showAudioDevices ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                  {showAudioDevices && (
+                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto bg-black/10 dark:bg-white/5 rounded p-2 mt-1">
+                      {status.audio.devices || 'No devices found'}
+                    </pre>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Disk & Database */}
+            <div>
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <HardDrive className="h-4 w-4" />
+                Storage
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Disk usage</span>
+                  <span className={status.disk.used_percent > 90 ? 'text-red-500 font-medium' : ''}>
+                    {status.disk.used_percent}% ({formatBytes(status.disk.free_bytes)} free)
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      status.disk.used_percent > 90 ? 'bg-red-500' :
+                      status.disk.used_percent > 75 ? 'bg-amber-500' :
+                      'bg-primary'
+                    }`}
+                    style={{ width: `${status.disk.used_percent}%` }}
+                  />
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Database</span>
+                  <span>{status.database.exists ? formatBytes(status.database.size_bytes) : 'Not found'}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Language</span>
+                  <span className="font-medium">{config?.database_lang?.toUpperCase() || 'EN'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Service Logs */}
+            <div>
+              <h4 className="text-sm font-medium mb-3">Service Logs</h4>
+              <div className="space-y-2">
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between text-xs"
+                    onClick={() => setShowRecLogs(!showRecLogs)}
+                  >
+                    Recording Service Logs
+                    {showRecLogs ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                  {showRecLogs && (
+                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto bg-black/10 dark:bg-white/5 rounded p-2 mt-1">
+                      {status.recording_logs || 'No logs available'}
+                    </pre>
+                  )}
+                </div>
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between text-xs"
+                    onClick={() => setShowAnalysisLogs(!showAnalysisLogs)}
+                  >
+                    Analysis Service Logs
+                    {showAnalysisLogs ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </Button>
+                  {showAnalysisLogs && (
+                    <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap max-h-48 overflow-y-auto bg-black/10 dark:bg-white/5 rounded p-2 mt-1">
+                      {status.analysis_logs || 'No logs available'}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }

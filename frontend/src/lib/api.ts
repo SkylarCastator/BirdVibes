@@ -184,4 +184,8 @@ export const api = {
   // Video status/diagnostics
   getVideoStatus: () =>
     fetchApi<any>('/video-status'),
+
+  // System status/diagnostics
+  getSystemStatus: () =>
+    fetchApi<any>('/system-status'),
 }

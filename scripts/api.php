@@ -69,6 +69,10 @@ try {
   elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/video-status') {
     handleVideoStatus();
   }
+  // GET /api/v1/system-status
+  elseif ($requestMethod === 'GET' && $requestUri === '/api/v1/system-status') {
+    handleSystemStatus();
+  }
   // GET /api/v1/image/{sci_name} (existing)
   elseif ($requestMethod === 'GET' && preg_match('#^/api/v1/image/(\S+)$#', $requestUri, $matches)) {
     handleImage(urldecode($matches[1]));
@@ -555,6 +559,136 @@ function handleVideoStatus() {
     'server_reachable' => $serverReachable,
     'server_health' => $healthData,
     'boot_config' => $bootConfig,
+  ]);
+}
+
+// GET /api/v1/system-status
+function handleSystemStatus() {
+  $config = get_config();
+  $home = get_home();
+
+  // --- Service statuses ---
+  $services = [];
+  $serviceNames = [
+    'birdnet_recording' => 'Recording (microphone capture)',
+    'birdnet_analysis' => 'Analysis (BirdNET detection)',
+    'livestream' => 'Live Audio Stream (Icecast2)',
+    'videostream' => 'Live Video Stream (MJPEG)',
+    'caddy' => 'Web Server (Caddy)',
+  ];
+  foreach ($serviceNames as $svc => $label) {
+    $status = trim(shell_exec("systemctl is-active $svc.service 2>/dev/null") ?? '');
+    $services[$svc] = [
+      'label' => $label,
+      'active' => ($status === 'active'),
+      'status' => $status ?: 'not-found',
+    ];
+  }
+
+  // --- Recording service logs (last 15 lines) ---
+  $recordingLogs = trim(shell_exec('journalctl -u birdnet_recording.service --no-pager -n 15 2>/dev/null') ?? '');
+
+  // --- Analysis service logs (last 15 lines) ---
+  $analysisLogs = trim(shell_exec('journalctl -u birdnet_analysis.service --no-pager -n 15 2>/dev/null') ?? '');
+
+  // --- Audio device info ---
+  $arecordDevices = trim(shell_exec('arecord -l 2>/dev/null') ?? '');
+  $recCard = $config['REC_CARD'] ?? 'default';
+
+  // --- PulseAudio status ---
+  $pulseRunning = false;
+  $pulseCheck = trim(shell_exec('pulseaudio --check 2>&1; echo $?') ?? '');
+  $pulseRunning = (trim($pulseCheck) === '0');
+
+  // --- StreamData directory (recent recordings) ---
+  $recsDir = $config['RECS_DIR'] ?? "$home/BirdSongs";
+  $streamDataDir = "$recsDir/StreamData";
+  $recentRecordings = [];
+  $recordingCount = 0;
+  if (is_dir($streamDataDir)) {
+    $files = glob("$streamDataDir/*.wav");
+    $recordingCount = count($files);
+    // Get the 5 most recent files
+    if ($files) {
+      usort($files, function($a, $b) { return filemtime($b) - filemtime($a); });
+      foreach (array_slice($files, 0, 5) as $f) {
+        $recentRecordings[] = [
+          'name' => basename($f),
+          'size' => filesize($f),
+          'age_seconds' => time() - filemtime($f),
+        ];
+      }
+    }
+  }
+
+  // --- Check if analysis is actively processing ---
+  $analyzingNow = file_exists("$streamDataDir/analyzing_now.txt");
+
+  // --- Detection pipeline config ---
+  $pipelineConfig = [
+    'confidence' => (float)($config['CONFIDENCE'] ?? 0.7),
+    'sensitivity' => (float)($config['SENSITIVITY'] ?? 1.25),
+    'overlap' => (float)($config['OVERLAP'] ?? 0.0),
+    'recording_length' => (int)($config['RECORDING_LENGTH'] ?? 15),
+    'rec_card' => $recCard,
+    'channels' => (int)($config['CHANNELS'] ?? 2),
+    'recs_dir' => $recsDir,
+    'model' => $config['MODEL'] ?? 'unknown',
+  ];
+
+  // --- Disk usage ---
+  $diskTotal = disk_total_space($recsDir ?: '/');
+  $diskFree = disk_free_space($recsDir ?: '/');
+  $diskUsed = $diskTotal - $diskFree;
+  $diskPercent = $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 1) : 0;
+
+  // --- Database stats ---
+  $dbPath = "$home/BirdNET-Pi/scripts/birds.db";
+  $dbExists = file_exists($dbPath);
+  $dbSize = $dbExists ? filesize($dbPath) : 0;
+
+  // Recent detection count (last hour)
+  $recentDetections = 0;
+  $lastDetection = null;
+  if ($dbExists) {
+    try {
+      $db = get_db();
+      $recentDetections = (int)$db->querySingle("SELECT COUNT(*) FROM detections WHERE Date = DATE('now','localtime') AND Time >= TIME('now','-1 hour','localtime')");
+      $lastRow = $db->querySingle("SELECT Date || ' ' || Time as dt FROM detections ORDER BY Date DESC, Time DESC LIMIT 1");
+      $lastDetection = $lastRow ?: null;
+    } catch (Exception $e) {
+      // DB might be locked
+    }
+  }
+
+  sendSuccess([
+    'services' => $services,
+    'recording_logs' => $recordingLogs,
+    'analysis_logs' => $analysisLogs,
+    'audio' => [
+      'rec_card' => $recCard,
+      'pulse_running' => $pulseRunning,
+      'devices' => $arecordDevices,
+    ],
+    'pipeline' => $pipelineConfig,
+    'recordings' => [
+      'stream_data_dir' => $streamDataDir,
+      'dir_exists' => is_dir($streamDataDir),
+      'wav_count' => $recordingCount,
+      'recent_files' => $recentRecordings,
+      'analyzing_now' => $analyzingNow,
+    ],
+    'database' => [
+      'exists' => $dbExists,
+      'size_bytes' => $dbSize,
+      'recent_detections_1h' => $recentDetections,
+      'last_detection' => $lastDetection,
+    ],
+    'disk' => [
+      'total_bytes' => $diskTotal,
+      'free_bytes' => $diskFree,
+      'used_percent' => $diskPercent,
+    ],
   ]);
 }
 
