@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Home, Bird, Calendar, BarChart3, TrendingUp, Settings, Menu, X, Grid3X3, Radio } from 'lucide-react'
 import { KiwiIcon } from '@/components/icons/KiwiIcon'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSpeciesList, useConfig } from '@/hooks/useApi'
 import { useNewBirds } from '@/hooks/useNewBirds'
@@ -21,6 +21,20 @@ export function Layout() {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { data: config } = useConfig()
+
+  // Apply dark mode class to <html> based on config
+  useEffect(() => {
+    const scheme = config?.color_scheme
+    if (scheme === 'light') {
+      document.documentElement.classList.remove('dark')
+    } else if (scheme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      // Default: follow system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      document.documentElement.classList.toggle('dark', prefersDark)
+    }
+  }, [config?.color_scheme])
 
   // Filter nav items based on config
   const navItems = useMemo(() => {

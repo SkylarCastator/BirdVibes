@@ -17,18 +17,6 @@
   --color-card-foreground: #3a4a4a;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-background: #1a2426;
-    --color-foreground: #e8f0f0;
-    --color-muted: #283234;
-    --color-muted-foreground: #98b8b8;
-    --color-border: #384848;
-    --color-card: #222c2e;
-    --color-card-foreground: #e8f0f0;
-  }
-}
-
 body {
   font-family: var(--font-sans);
   background-color: var(--color-background);

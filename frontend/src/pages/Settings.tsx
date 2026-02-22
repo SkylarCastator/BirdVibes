@@ -230,14 +230,20 @@ export function Settings() {
             <div className="flex gap-2">
               <Button
                 variant={colorScheme === 'light' ? 'default' : 'outline'}
-                onClick={() => setColorScheme('light')}
+                onClick={() => {
+                  setColorScheme('light')
+                  document.documentElement.classList.remove('dark')
+                }}
                 className="flex-1"
               >
                 Light
               </Button>
               <Button
                 variant={colorScheme === 'dark' ? 'default' : 'outline'}
-                onClick={() => setColorScheme('dark')}
+                onClick={() => {
+                  setColorScheme('dark')
+                  document.documentElement.classList.add('dark')
+                }}
                 className="flex-1"
               >
                 Dark
